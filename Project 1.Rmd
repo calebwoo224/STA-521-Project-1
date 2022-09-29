@@ -1,0 +1,320 @@
+---
+title: "Project 1"
+author: "Sanskriti Purohit & Caleb Woo"
+date: "2022-10-13"
+output: pdf_document
+---
+
+```{r chunk-options}
+knitr::opts_chunk$set(message = F, warning = F)
+```
+
+```{r libraries-data}
+library(tidyverse)
+data_net <- read_csv("data/sonoma-data-net.csv")
+data_log <- read_csv("data/sonoma-data-log.csv")
+```
+
+## 2.
+
+### a)
+
+Voltage
+
+```{r initial-voltage}
+data_net %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=25) +
+  labs(title="Network ADC Histogram", x="ADC", y="Count")
+
+data_log %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=0.25) +
+  labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
+```
+
+Voltage is inconsistent, link below for ADC to voltage conversion
+
+  - http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf
+  
+  - page 23 (25 of pdf) has MICA2DOT conversion
+
+```{r fixed-voltage}
+data_net <- data_net %>%
+  mutate(voltage = 0.6*(1024/voltage))
+
+data_net %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=0.25) +
+  labs(title="Network Voltage Histogram", x="Voltage", y="Count")
+
+data_log %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=0.25) +
+  labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
+```
+
+Humidity
+
+```{r humidity}
+data_net %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humidity) %>%
+  pull() %>%
+  min()
+
+data_log %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humidity) %>%
+  pull() %>%
+  min()
+
+data_net %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
+  select(humidity) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humidity) %>%
+  pull() %>%
+  max()
+
+data_net %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
+  ggplot(data=., aes(x=humidity)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Humidity Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humidity)) +
+  geom_histogram(bins=20) +
+  labs(title="Logs Humidity Histogram", x="Humidity", y="Count")
+```
+
+Adjusted Humidity
+
+```{r adj-humidity}
+data_net %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_adj) %>%
+  pull() %>%
+  min()
+
+data_log %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_adj) %>%
+  pull() %>%
+  min()
+
+data_net %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
+  select(humid_adj) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_adj) %>%
+  pull() %>%
+  max()
+
+data_net %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
+  ggplot(data=., aes(x=humid_adj)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Adjusted Humidity Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humid_adj)) +
+  geom_histogram(bins=20) +
+  labs(title="Logs Adjusted Humidity Histogram", x="Humidity", y="Count")
+```
+
+Temperature
+
+```{r temperature}
+data_net %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_temp) %>%
+  pull() %>%
+  min()
+
+data_log %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_temp) %>%
+  pull() %>%
+  min()
+
+data_net %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
+  select(humid_temp) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
+  select(humid_temp) %>%
+  pull() %>%
+  max()
+
+data_net %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
+  ggplot(data=., aes(x=humid_temp)) +
+  geom_histogram(bins=15) +
+  labs(title="Network Temperature Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humid_temp)) +
+  geom_histogram(bins=15) +
+  labs(title="Logs Temperature Histogram", x="Humidity", y="Count")
+```
+
+Incident PAR
+
+```{r initial-hamatop}
+data_net %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamatop) %>%
+  pull() %>%
+  min()
+
+data_log %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamatop) %>%
+  pull() %>%
+  min()
+
+data_net %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamatop) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamatop) %>%
+  pull() %>%
+  max()
+```
+
+Hamatop is inconsistent, link below for Lux to PPFD conversion
+
+  - https://www.apogeeinstruments.com/conversion-ppfd-to-lux/
+
+```{r fixed-hamatop}
+data_net <- data_net %>%
+  mutate(hamatop=0.0185*hamatop)
+
+data_log <- data_log %>%
+  mutate(hamatop=0.0185*hamatop)
+
+data_net %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamatop) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4 & hamatop < 2200) %>%
+  select(hamatop) %>%
+  pull() %>%
+  max()
+
+data_net %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Incident PAR Histogram", x="Incident PAR", y="Count")
+
+data_log %>%
+  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4  & hamatop < 2200) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Logs Incident PAR Histogram", x="Incident PAR", y="Count")
+```
+
+Reflected PAR
+
+```{r initial-hamabot}
+data_net %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  min()
+
+data_log %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  min()
+
+data_net %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  max()
+```
+
+Fix hamabot like hamatop
+
+```{r fixed-hamabot}
+data_net <- data_net %>%
+  mutate(hamabot=0.0185*hamabot)
+
+data_log <- data_log %>%
+  mutate(hamabot=0.0185*hamabot)
+
+data_net %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  max()
+
+data_log %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  select(hamabot) %>%
+  pull() %>%
+  max()
+
+data_net %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=hamabot)) +
+  geom_histogram(bins=15) +
+  labs(title="Network Reflected PAR Histogram", x="Reflected PAR", y="Count")
+
+data_log %>%
+  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=hamabot)) +
+  geom_histogram(bins=15) +
+  labs(title="Logs Reflected PAR Histogram", x="Reflected PAR", y="Count")
+```
+
+### b)
+
+How to read matlab arrays in "sonoma-dates"?
+
+```{r dates-merge}
+# library(rmatio)
+# dates_file <- system.file("data/sonoma-dates.m", package = "rmatio")
+# dates <- read.mat(dates_file)
+
+data_both <- merge(data_net, data_log, by=c("epoch", "nodeid"))
+```
+
+```{r missing}
+missing_rows <- data_both %>%
+                  filter_all(any_vars(is.na(.)))
+
+paste0("# rows with missing data: ", nrow(missing_rows))
+```

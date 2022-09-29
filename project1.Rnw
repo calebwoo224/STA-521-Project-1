@@ -15,6 +15,7 @@ knitr::opts_chunk$set(include=TRUE,echo = TRUE, message = FALSE, warning = FALSE
 \date{Due by: \textbf{3 PM, Thursday, Oct. 13}}
 
 \begin{document}
+\SweaveOpts{concordance=TRUE}
 
 \maketitle
 
@@ -63,7 +64,7 @@ This data set is quite raw - it contains some gross outliers, inconsistencies, a
 
 The file \textbf{sonoma-data-all.csv} is a simple concatenation of the two files  \textbf{sonoma-data-log.csv} and \textbf{sonoma-data-net.csv}. However, doing the merge of two data files requires that they are consistent. nodeid and epoch together provides a unique identifier for one measure. But some other variables are not consistent.  
 \begin{enumerate}[label=(\alph*)]
-\item Check histograms of each variable in two data files (Plot only the ones that you think are interesting or relevant). Which variable is not consistent? Convert the data to the same range. NO CODE but explain clearly what you did. 
+\item Check histograms of each variable in two data files (Plot only the ones that you think are interesting or relevant). Which variable is not consistent? Convert the data to the same range. NO CODE but explain clearly what you did.
 \item Remove missing data. Comment on the number of missing measurements and the corresponding date and time period.
 \item The location data is separate in another file \textbf{mote-location-data.txt}. Incorporate it in the main table. Hint: here the nodeid serves a key to add columns for height, direction, distance and tree. State the number of variables in your new data frame.
 \item Use histogram and quantiles to visually identify easy outliers for each of the four variables: humidity, humid temp, hamatop, hamabot. And remove them. Comment on the rationality behind your removal.
