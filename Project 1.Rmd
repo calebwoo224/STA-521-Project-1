@@ -15,6 +15,22 @@ data_net <- read_csv("data/sonoma-data-net.csv")
 data_log <- read_csv("data/sonoma-data-log.csv")
 ```
 
+```{r dates}
+dates <- read.table("data/sonoma-dates", sep = " ")
+dates <- data.frame(t(dates)[-2,], row.names = NULL)
+names(dates) <- dates[1,]
+dates <- dates[-1,]
+dates <- dates[-13001,]
+dates[1,] <- c("1",	"Tue Apr 27 17:10:00 2004",	"12536.0069444444")
+row.names(dates) <- NULL
+
+dates <- dates %>%
+  mutate(epochNums = as.integer(epochNums),
+         epochDates = as.POSIXct(epochDates, format = "%a %b %d %H:%M:%S %Y"),
+         epochDays = as.numeric(epochDays))
+names(dates)[1] <- "epoch"
+```
+
 ## 2.
 
 ### a)
@@ -302,19 +318,25 @@ data_log %>%
 
 ### b)
 
-How to read matlab arrays in "sonoma-dates"?
-
 ```{r dates-merge}
-# library(rmatio)
-# dates_file <- system.file("data/sonoma-dates.m", package = "rmatio")
-# dates <- read.mat(dates_file)
-
-data_both <- merge(data_net, data_log, by=c("epoch", "nodeid"))
+data_both <- merge(data_net, data_log, by = c("epoch", "nodeid"), all.y = T, suffixes = c(".net", ".log"))
+data_all <- merge(data_both, dates, by = "epoch", all.x = T)
 ```
 
-```{r missing}
-missing_rows <- data_both %>%
-                  filter_all(any_vars(is.na(.)))
+```{r missing-info}
+missing_data <-  data_all %>%
+  select(epoch, nodeid, ends_with(".log"), epochDates, epochDays) %>%
+  filter_all(any_vars(is.na(.)))
 
-paste0("# rows with missing data: ", nrow(missing_rows))
+paste0("# of missing measurements: ", nrow(missing_data))
+
+missing_data %>%
+  select(epochDates) %>%
+  summarise(min = min(epochDates),
+            max = max(epochDates))
+```
+
+```{r remove-missing}
+data_all <- data_all[!row.names(data_all) %in% row.names(missing_data),]
+row.names(data_all) <- NULL
 ```
