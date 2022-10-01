@@ -323,10 +323,12 @@ data_both <- merge(data_net, data_log, by = c("epoch", "nodeid"), all.y = T, suf
 data_all <- merge(data_both, dates, by = "epoch", all.x = T)
 ```
 
-```{r missing-info}
+```{r missing}
 missing_data <-  data_all %>%
-  select(epoch, nodeid, ends_with(".log"), epochDates, epochDays) %>%
+  select(ends_with(".log"), epochDates, epochDays) %>%
   filter_all(any_vars(is.na(.)))
+  #filter(is.na(parent.log) | is.na(voltage.log) | is.na(depth.log) | is.na(humidity.log) | is.na(humid_temp.log) |
+  #       is.na(humid_adj.log) | is.na(hamatop.log) | is.na(hamabot.log))
 
 paste0("# of missing measurements: ", nrow(missing_data))
 
@@ -337,6 +339,138 @@ missing_data %>%
 ```
 
 ```{r remove-missing}
-data_all <- data_all[!row.names(data_all) %in% row.names(missing_data),]
+data_all <- data_all %>%
+  filter(!is.na(parent.log) & !is.na(voltage.log) & !is.na(depth.log) & !is.na(humidity.log) & !is.na(humid_temp.log) &
+         !is.na(humid_adj.log) & !is.na(hamatop.log) & !is.na(hamabot.log))
 row.names(data_all) <- NULL
 ```
+
+### c)
+
+```{r locations}
+locations <- read.table("data/mote-location-data.txt")
+names(locations) <- locations[1,]
+names(locations)[1] <- "nodeid"
+locations <- data.frame(locations[-1,])
+row.names(locations) <- NULL
+```
+
+```{r locations-merge}
+data_all <- merge(data_all, locations, by = "nodeid", all.x = T)
+```
+
+The network data and logs data have identical columns in this merged data frame except for voltage. This must be because network voltage data had to be converted from ADC so the conversion may not be exact. Since network data is missing for some rows, logs data is not missing for any rows, and logs data has identical values as network data (other than voltage but logs voltage is more accurate anyways), we can remove network data columns from the merged data frame. In addition, result_time and epochDates represent the same information with epochDates from sonoma-dates being more accurate, so I will also remove the result_time column from the logs data.
+
+```{r remove-network-data}
+data_all <- data_all %>%
+  select(-ends_with(".net"), -result_time.log)
+names(data_all)[3:11] <- str_replace(names(data_all)[3:11], ".log", "")
+names(data_all)
+```
+
+There are 16 total variables in my complete merged data frame that includes network and logs data, dates data, and locations data.
+
+### d)
+
+Since sensors with low batteries were not accurate, we removed all data with voltages greater than 3 and less than 2.4 like Tolle et al. Below are the quantiles and histograms of each variable after removing the voltages and before removing any other outliers.
+
+```{r voltage-outliers}
+data_all <- data_all %>%
+  filter(voltage <= 3 & voltage >= 2.4)
+```
+
+```{r humidity-pre-removal}
+quantile(data_all$humidity)
+
+data_all %>%
+  ggplot(., aes(x=humidity)) +
+  geom_histogram()
+```
+
+```{r humid_adj-removal}
+quantile(data_all$humid_adj)
+
+data_all %>%
+  ggplot(., aes(x=humid_adj)) +
+  geom_histogram()
+```
+
+The quantiles in humid_adj more closely matches that of Tolle et al. compared to the quantiles of humidity so we should use humid_adj in place of humidity. This allows us to remove 1 more variable so we have a total of 15 variables. There do not seem to be any other outliers in humid_adj.
+
+```{r temp-pre-removal}
+quantile(data_all$humid_temp)
+
+data_all %>%
+  ggplot(., aes(x=humid_temp)) +
+  geom_histogram()
+```
+
+The quantiles of temperature match up well with that of Tolle et al. so there does not seem to be any other outliers in temperature.
+
+```{r hamatop-pre-removal}
+quantile(data_all$hamatop)
+
+data_all %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram()
+```
+
+```{r high-hamatop-nodes}
+data_all %>%
+  filter(hamatop > 2154) %>%
+  select(nodeid) %>%
+  unique()
+```
+
+There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40.
+
+```{r hamabot-pre-removal}
+quantile(data_all$hamabot)
+
+data_all %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram()
+```
+
+The quantiles of reflected PAR match up well with that of Tolle et al. so there does not seem to be any other outliers in reflected PAR.
+
+Below are the quantiles and histograms of each variable after removing both the voltages and observations with node 40. 
+
+```{r remove-node-40}
+data_all <- data_all %>%
+  filter(nodeid != 40)
+```
+
+```{r humid-adj-post-removal}
+quantile(data_all$humid_adj)
+
+data_all %>%
+  ggplot(., aes(x=humid_adj)) +
+  geom_histogram()
+```
+
+```{r temp-post-removal}
+quantile(data_all$humid_temp)
+
+data_all %>%
+  ggplot(., aes(x=humid_temp)) +
+  geom_histogram()
+```
+
+```{r hamatop-post-removal}
+quantile(data_all$hamatop)
+
+data_all %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram()
+```
+
+```{r hamabot-post-removal}
+quantile(data_all$hamabot)
+
+data_all %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram()
+```
+
+All quantiles and histograms of humidity, temperature, incident PAR, and reflected PAR match up well with the quantiles of Tolle et al. after removing observations with voltages greater than 3 and less than 2.4 and removing observations with node 40.
