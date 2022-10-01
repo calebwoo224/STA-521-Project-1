@@ -474,3 +474,7 @@ data_all %>%
 ```
 
 All quantiles and histograms of humidity, temperature, incident PAR, and reflected PAR match up well with the quantiles of Tolle et al. after removing observations with voltages greater than 3 and less than 2.4 and removing observations with node 40.
+
+```{r write-csv-data-all}
+#write.csv(data_all, "data/data-all-dates-locations.csv")
+```
