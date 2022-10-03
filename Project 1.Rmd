@@ -11,8 +11,12 @@ knitr::opts_chunk$set(message = F, warning = F)
 
 ```{r libraries-data}
 library(tidyverse)
-data_net <- read_csv("data/sonoma-data-net.csv")
-data_log <- read_csv("data/sonoma-data-log.csv")
+library(dplyr)
+library(chron)
+library(lubridate)
+library(ggcorrplot)
+data_net <- read.csv("data/sonoma-data-net.csv")
+data_log <- read.csv("data/sonoma-data-log.csv")
 ```
 
 ```{r dates}
@@ -477,4 +481,82 @@ All quantiles and histograms of humidity, temperature, incident PAR, and reflect
 
 ```{r write-csv-data-all}
 #write.csv(data_all, "data/data-all-dates-locations.csv")
+```
+```{r}
+#Checking for further outliers
+data_all %>%
+  ggplot(., aes(x=voltage))+geom_boxplot()
+data_all %>%
+  ggplot(., aes(x=humid_temp))+geom_boxplot()
+```
+## 3.
+### a)
+```{r}
+data_all %>%
+  select(epochDates) %>%
+  summarise(
+    min = min(epochDates),
+    max = max(epochDates)
+  )
+
+data_all$Date = as.Date(data_all$epochDates)
+data_all$time = format(as.POSIXct(data_all$epochDates), format = "%H:%M")
+data_all$dayofweek = wday(data_all$epochDates)
+data_all$hour = format(as.POSIXct(data_all$epochDates), format = "%H")
+data_all$hour = as.numeric(data_all$hour)
+# data_all$Height = as.numeric(data_all$Height) #Check this
+#Reason for choosing the hours for Dark and Light
+data_all %>% 
+  ggplot(aes(x=hour,y=hamatop)) + geom_point()
+data_all$Sunlight = case_when(
+  as.numeric(data_all$hour) <= 5 | as.numeric(data_all$hour) >= 20  ~ "Dark",
+  as.numeric(data_all$hour) < 20 ~ "Light"
+)
+data_all$VPD = 6.1078*exp((17.269*data_all$humid_temp)/(237.3+data_all$humid_temp))*(1-(data_all$humid_adj/100))
+X = log(data_all$humid_adj/100) + ((17.269*data_all$humid_temp)/(237.3+data_all$humid_temp))
+data_all$dewpoint = (237.3*X)/(17.269-X)
+count(data_all,Sunlight)
+
+date_count = data_all %>% 
+  count(Date)
+date_count$n = date_count$n*100/sum(date_count$n)
+p=0
+for(i in 1:length(date_count$n)){
+  p = p + date_count$n[i]
+  date_count$n[i] = p
+}
+date_count$n
+data_all = data_all %>%
+  filter(Date > '2004-04-27' & Date < '2004-05-27')
+data_all %>%
+  select(epochDates) %>%
+  summarise(
+    min = min(epochDates),
+    max = max(epochDates)
+  )
+count(data_all,Sunlight)
+
+#Add more?
+data_all %>% 
+  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point()
+data_all %>% 
+  ggplot(aes(x=hour,y=hamatop)) + geom_point()
+data_all %>%
+  ggplot(aes(x=hour,y=hamatop, col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=humid_temp,y=hamatop)) + geom_point()
+data_all %>% 
+  ggplot(aes(x=humid_adj,y=hamabot, col = Sunlight)) + geom_point()
+data_all %>% 
+  ggplot(aes(x=humid_temp,y=hamabot, col=Sunlight)) + geom_point()
+#Abnormal values of reflected ray at odd hours at higher levels of heights.
+data_all %>% 
+  ggplot(aes(x=hour,y=hamabot)) + geom_point()
+```
+## 3
+### b)
+```{r}
+#Positive correlation only between hamatop and hamabot?
+corr = round(x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman")))
+ggcorrplot(corr,method="square")
 ```
