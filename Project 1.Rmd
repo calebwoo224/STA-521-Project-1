@@ -667,11 +667,12 @@ data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late N
 ```{r may-data-sun}
 data_all_sun <- data_all_sun %>%
   select(-c("...1", "...2", "Sunrise", "Sunset", "Solar Noon", "Begin Sunrise",
-            "End Sunset", "End Sunrise", "Begin Sunset", "Time", "Hour"))
+            "End Sunset", "End Sunrise", "Begin Sunset"))
 #write.csv(data_all_sun, "data/may-data-sun.csv")
 ```
 
 ```{r count-Times}
+data_all_sun <- read_csv("data/may-data-sun.csv")
 data_all_sun %>%
   count(Time)
 ```
