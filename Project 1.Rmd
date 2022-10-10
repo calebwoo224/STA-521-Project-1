@@ -498,6 +498,7 @@ data_all %>%
 
 ### a)
 ```{r}
+data_all = read.csv("data/data-all-dates-locations.csv")
 data_all %>%
   select(epochDates) %>%
   summarise(
@@ -518,9 +519,6 @@ data_all$Sunlight = case_when(
   as.numeric(data_all$hour) <= 5 | as.numeric(data_all$hour) >= 20  ~ "Dark",
   as.numeric(data_all$hour) < 20 ~ "Light"
 )
-data_all$VPD = 6.1078*exp((17.269*data_all$humid_temp)/(237.3+data_all$humid_temp))*(1-(data_all$humid_adj/100))
-X = log(data_all$humid_adj/100) + ((17.269*data_all$humid_temp)/(237.3+data_all$humid_temp))
-data_all$dewpoint = (237.3*X)/(17.269-X)
 count(data_all,Sunlight)
 
 date_count = data_all %>% 
@@ -565,6 +563,31 @@ data_all %>%
 #Positive correlation only between hamatop and hamabot?
 corr = round(x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman")))
 ggcorrplot(corr,method="square")
+```
+
+### c)
+```{r}
+data_all %>%
+  ggplot(aes(x=Date,y=hamatop,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=hamabot,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=humid_adj,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=humid_temp,col=Height)) + geom_point()
+```
+### d)
+```{r}
+names(data_all)
+cols_name = c("hamatop","hamabot","Height","hour","dayofweek","humid_temp","humid_adj")
+data_filtered = data_all |>
+  select(all_of(cols_name)) |>
+  data.frame()
+pca_prcomp = prcomp(data_filtered, scale. = TRUE)
+summary(pca_prcomp)
+eigenvalues = pca_prcomp$sdev**2
+plot(1:length(eigenvalues), eigenvalues/sum(eigenvalues), type = "l")
+points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 ```
 
 ## 4
