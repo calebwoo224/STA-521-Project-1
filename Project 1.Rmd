@@ -626,13 +626,30 @@ data_all_sun <- data_all_sun %>%
   mutate(Time = case_when(
     epochDates %within% interval(`Begin Sunrise`, `End Sunrise`) ~ "Sunrise",
     epochDates %within% interval(`Begin Sunset`, `End Sunset`) ~ "Sunset",
-    epochDates %within% interval(`End Sunrise`, `Solar Noon`) ~ "Morning",
-    epochDates %within% interval(`Solar Noon`, `Begin Sunset`) ~ "Afternoon",
-    T ~ "Night"
+    epochDates %within% interval(`End Sunrise`, as.POSIXct(paste0("2004-05-", Day, " 10:00:00"), tz = "UTC")) ~ "Early Morning",
+    epochDates %within% interval(as.POSIXct(paste0("2004-05-", Day, " 10:00:00"), tz = "UTC"), `Solar Noon`) ~ "Late Morning",
+    epochDates %within% interval(`Solar Noon`, as.POSIXct(paste0("2004-05-", Day, " 16:30:00"), tz = "UTC")) ~ "Early Noon",
+    epochDates %within% interval(as.POSIXct(paste0("2004-05-", Day, " 16:30:00"), tz = "UTC"), `Begin Sunset`) ~ "Late Noon",
+    epochDates %within% interval(`End Sunset`, as.POSIXct(paste0("2004-05-", Day, " 23:59:59"), tz = "UTC")) ~ "Early Night",
+    epochDates %within% interval(as.POSIXct(paste0("2004-05-", Day, " 00:00:00"), tz = "UTC"),
+                                 as.POSIXct(paste0("2004-05-", Day, " 01:30:00"), tz = "UTC")) ~ "Early Night",
+    epochDates %within% interval(as.POSIXct(paste0("2004-05-", Day, " 01:30:00"), tz = "UTC"), `Begin Sunrise`) ~ "Late Night"
   ))
 data_all_sun <- data_all_sun %>%
   mutate(Hour = hour(epochDates))
-data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Night", "Sunrise", "Morning", "Afternoon", "Sunset"))
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning",
+                                                          "Late Morning", "Early Noon", "Late Noon", "Sunset"))
+```
+
+```{r may-data-sun}
+data_all_sun <- data_all_sun %>%
+  select(-c("...1", "...2"))
+#write.csv(data_all_sun, "data/may-data-sun.csv")
+```
+
+```{r count-Times}
+data_all_sun %>%
+  count(Time)
 ```
 
 ### Time vs Variable Boxplots
@@ -648,63 +665,61 @@ ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
   geom_boxplot()
 ```
 
-### Afternoon vs Night Clustering
+### Early Noon vs Late Night Clustering
 
-```{r afternoon-night-plot}
+```{r plot1}
 data_all_sun %>%
-  filter(Time == "Afternoon" | Time == "Night") %>%
-  ggplot(., aes(x=humid_temp, y=humid_adj, color=Time)) +
+  filter(Time == "Early Noon" | Time == "Late Night") %>%
+  ggplot(., aes(x=humid_adj, y=humid_temp, color=Time)) +
   geom_point()
 ```
 
-```{r afternoon-night-clustering}
+```{r clustering-1}
 library(mclust)
 set.seed(521)
 
-after_night_gmm <- data_all_sun %>%
-  filter(Time == "Afternoon" | Time == "Night") %>%
-  select(humid_temp, humid_adj) %>%
-  Mclust(., G=2, modelNames="EEE", prior=priorControl())
+early_late_gmm <- data_all_sun %>%
+  filter(Time == "Early Noon" | Time == "Late Night") %>%
+  select(humid_adj, humid_temp) %>%
+  Mclust(., G=2, modelNames="VVV", prior=priorControl())
 
-after_night_clusters_data <- data_all_sun %>%
-  filter(Time == "Afternoon" | Time == "Night") %>%
-  select(humid_temp, humid_adj) %>%
-  cbind(., after_night_gmm$classification)
+early_late_clusters_data <- data_all_sun %>%
+  filter(Time == "Early Noon" | Time == "Late Night") %>%
+  select(humid_adj, humid_temp) %>%
+  cbind(., early_late_gmm$classification)
 
-names(after_night_clusters_data)[3] <- "Cluster"
-after_night_clusters_data$Cluster <- as.factor(after_night_clusters_data$Cluster)
+names(early_late_clusters_data)[3] <- "Cluster"
+early_late_clusters_data$Cluster <- as.factor(early_late_clusters_data$Cluster)
 
-ggplot(after_night_clusters_data, aes(x=humid_temp, y=humid_adj, color=Cluster)) +
+ggplot(early_late_clusters_data, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
   geom_point()
 ```
 
-### Sunrise vs Sunset Clustering
-
-```{r sunrise-sunset-plots}
+```{r plot2}
 data_all_sun %>%
-  filter(Time == "Sunrise" | Time == "Sunset") %>%
-  ggplot(., aes(x=humid_temp, y=humid_adj, color=Time)) +
+  filter(Time == "Early Noon" | Time == "Early Morning") %>%
+  ggplot(., aes(x=hamatop, y=humid_temp, color=Time)) +
   geom_point()
 ```
 
-```{r sunrise-sunset-clustering}
+```{r clustering-2}
 library(mclust)
 set.seed(521)
 
-rise_set_gmm <- data_all_sun %>%
-  filter(Time == "Sunrise" | Time == "Sunset") %>%
-  select(humid_temp, humid_adj) %>%
-  Mclust(., G=2, modelNames="EVI", prior=priorControl())
+early_both_gmm <- data_all_sun %>%
+  filter(Time == "Early Noon" | Time == "Early Morning") %>%
+  select(hamatop, humid_temp) %>%
+  Mclust(., G=2, modelNames="VVV", prior=priorControl())
 
-rise_set_clusters_data <- data_all_sun %>%
-  filter(Time == "Sunrise" | Time == "Sunset") %>%
-  select(humid_temp, humid_adj) %>%
-  cbind(., rise_set_gmm$classification)
+early_both_clusters_data <- data_all_sun %>%
+  filter(Time == "Early Noon" | Time == "Early Morning") %>%
+  select(hamatop, humid_temp) %>%
+  cbind(., early_both_gmm$classification)
 
-names(rise_set_clusters_data)[3] <- "Cluster"
-rise_set_clusters_data$Cluster <- as.factor(rise_set_clusters_data$Cluster)
+names(early_both_clusters_data)[3] <- "Cluster"
+early_both_clusters_data$Cluster <- as.factor(early_both_clusters_data$Cluster)
 
-ggplot(rise_set_clusters_data, aes(x=humid_temp, y=humid_adj, color=Cluster)) +
+ggplot(early_both_clusters_data, aes(x=hamatop, y=humid_temp, color=Cluster)) +
   geom_point()
 ```
 
