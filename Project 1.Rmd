@@ -566,3 +566,156 @@ data_all %>%
 corr = round(x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman")))
 ggcorrplot(corr,method="square")
 ```
+
+## 4
+
+```{r may-count}
+data_all %>%
+  filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
+  nrow()
+```
+
+78.2% of data is within May, 2004
+
+```{r sonoma-may-sun-data}
+library(tidyverse)
+library(rvest)
+library(lubridate)
+sonoma_may_sun <- read_html("https://www.timeanddate.com/sun/usa/sonoma?month=5&year=2004") %>%
+  html_element(xpath="//*[@id='as-monthsun']") %>%
+  html_table()
+names(sonoma_may_sun)[1] <- "Day"
+names(sonoma_may_sun)[2] <- "Sunrise"
+names(sonoma_may_sun)[3] <- "Sunset"
+names(sonoma_may_sun)[13] <- "Solar Noon Direction"
+names(sonoma_may_sun)[10] <- "Begin Sunrise"
+names(sonoma_may_sun)[11] <- "End Sunset"
+  
+sonoma_may_sun <- sonoma_may_sun %>%
+  select(Day, Sunrise, Sunset, `Solar Noon`, `Begin Sunrise`, `End Sunset`) %>%
+  mutate(Sunrise = str_extract(Sunrise, "[:digit:]:[:digit:][:digit:]"),
+         Sunset = str_extract(Sunset, "[:digit:]:[:digit:][:digit:]"),
+         `Solar Noon` = str_extract(`Solar Noon`, "[:digit:]:[:digit:][:digit:]"),
+         `Begin Sunrise` = str_extract(`Begin Sunrise`, "[:digit:]:[:digit:][:digit:]"),
+         `End Sunset` = str_extract(`End Sunset`, "[:digit:]:[:digit:][:digit:]"))
+sonoma_may_sun <- sonoma_may_sun[2:32,]
+sonoma_may_sun[1, 1] <- "1"
+sonoma_may_sun[1, 2] <- "6:12"
+sonoma_may_sun[1, 3] <- "8:01"
+sonoma_may_sun[1, 4] <- "1:06"
+sonoma_may_sun[1, 5] <- "5:44"
+sonoma_may_sun[1, 6] <- "8:30"
+sonoma_may_sun <- sonoma_may_sun %>%
+  mutate(Day = as.integer(Day),
+         Sunrise = as.POSIXct(paste0("2004-05-", Day, " ", Sunrise, ":00"), tz = "UTC"),
+         Sunset = as.POSIXct(paste0("2004-05-", Day, " ", Sunset, ":00"), tz = "UTC") + hours(12),
+         `Solar Noon` = as.POSIXct(paste0("2004-05-", Day, " ", `Solar Noon`, ":00"), tz = "UTC") + hours(12),
+         `Begin Sunrise` = as.POSIXct(paste0("2004-05-", Day, " ", `Begin Sunrise`, ":00"), tz = "UTC"),
+         `End Sunset` = as.POSIXct(paste0("2004-05-", Day, " ", `End Sunset`, ":00"), tz = "UTC") + hours(12)) %>%
+  mutate(`End Sunrise` = Sunrise + (Sunrise-`Begin Sunrise`),
+         `Begin Sunset` = Sunset - (`End Sunset`-Sunset))
+```
+
+```{r 4-data}
+data_all <- read_csv("data/data-all-dates-locations.csv")
+data_all <- data_all %>%
+  filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
+  mutate(Day = day(epochDates))
+data_all_sun <- merge(data_all, sonoma_may_sun, by="Day")
+data_all_sun <- data_all_sun %>%
+  mutate(Time = case_when(
+    epochDates %within% interval(`Begin Sunrise`, `End Sunrise`) ~ "Sunrise",
+    epochDates %within% interval(`Begin Sunset`, `End Sunset`) ~ "Sunset",
+    epochDates %within% interval(`End Sunrise`, `Solar Noon`) ~ "Morning",
+    epochDates %within% interval(`Solar Noon`, `Begin Sunset`) ~ "Afternoon",
+    T ~ "Night"
+  ))
+data_all_sun <- data_all_sun %>%
+  mutate(Hour = hour(epochDates))
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Night", "Sunrise", "Morning", "Afternoon", "Sunset"))
+```
+
+### Time vs Variable Boxplots
+
+```{r boxplots}
+ggplot(data_all_sun, aes(x=Time, y=hamatop, group=Time)) +
+  geom_boxplot()
+
+ggplot(data_all_sun, aes(x=Time, y=humid_temp, group=Time)) +
+  geom_boxplot()
+
+ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
+  geom_boxplot()
+```
+
+### Afternoon vs Night Clustering
+
+```{r afternoon-night-plot}
+data_all_sun %>%
+  filter(Time == "Afternoon" | Time == "Night") %>%
+  ggplot(., aes(x=humid_temp, y=humid_adj, color=Time)) +
+  geom_point()
+```
+
+```{r afternoon-night-clustering}
+library(mclust)
+set.seed(521)
+
+after_night_gmm <- data_all_sun %>%
+  filter(Time == "Afternoon" | Time == "Night") %>%
+  select(humid_temp, humid_adj) %>%
+  Mclust(., G=2, modelNames="EEE", prior=priorControl())
+
+after_night_clusters_data <- data_all_sun %>%
+  filter(Time == "Afternoon" | Time == "Night") %>%
+  select(humid_temp, humid_adj) %>%
+  cbind(., after_night_gmm$classification)
+
+names(after_night_clusters_data)[3] <- "Cluster"
+after_night_clusters_data$Cluster <- as.factor(after_night_clusters_data$Cluster)
+
+ggplot(after_night_clusters_data, aes(x=humid_temp, y=humid_adj, color=Cluster)) +
+  geom_point()
+```
+
+### Sunrise vs Sunset Clustering
+
+```{r sunrise-sunset-plots}
+data_all_sun %>%
+  filter(Time == "Sunrise" | Time == "Sunset") %>%
+  ggplot(., aes(x=humid_temp, y=humid_adj, color=Time)) +
+  geom_point()
+```
+
+```{r sunrise-sunset-clustering}
+library(mclust)
+set.seed(521)
+
+rise_set_gmm <- data_all_sun %>%
+  filter(Time == "Sunrise" | Time == "Sunset") %>%
+  select(humid_temp, humid_adj) %>%
+  Mclust(., G=2, modelNames="EVI", prior=priorControl())
+
+rise_set_clusters_data <- data_all_sun %>%
+  filter(Time == "Sunrise" | Time == "Sunset") %>%
+  select(humid_temp, humid_adj) %>%
+  cbind(., rise_set_gmm$classification)
+
+names(rise_set_clusters_data)[3] <- "Cluster"
+rise_set_clusters_data$Cluster <- as.factor(rise_set_clusters_data$Cluster)
+
+ggplot(rise_set_clusters_data, aes(x=humid_temp, y=humid_adj, color=Cluster)) +
+  geom_point()
+```
+
+### Incident PAR
+
+```{r glm}
+library(stats)
+normal_glm <- glm(hamatop ~ humid_temp + humid_adj + Height + Time, family = gaussian(), data = data_all_sun)
+summary(normal_glm)
+```
+
+```{r glm-diagnostics}
+plot(normal_glm)
+```
