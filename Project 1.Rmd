@@ -566,6 +566,17 @@ ggcorrplot(corr,method="square")
 ```
 ### c)
 ```{r}
+data_all %>%
+  ggplot(aes(x=Date,y=hamatop,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=hamabot,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=humid_adj,col=Height)) + geom_point()
+data_all %>%
+  ggplot(aes(x=Date,y=humid_temp,col=Height)) + geom_point()
+```
+### d)
+```{r}
 names(data_all)
 cols_name = c("hamatop","hamabot","Height","hour","dayofweek","humid_temp","humid_adj")
 data_filtered = data_all |>
