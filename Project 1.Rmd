@@ -679,8 +679,7 @@ data_all_sun <- data_all_sun %>%
   ))
 data_all_sun <- data_all_sun %>%
   mutate(Hour = hour(epochDates))
-data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning",
-                                                          "Late Morning", "Early Noon", "Late Noon", "Sunset"))
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset"))
 ```
 
 ```{r may-data-sun}
@@ -692,6 +691,7 @@ data_all_sun <- data_all_sun %>%
 
 ```{r count-Times}
 data_all_sun <- read_csv("data/may-data-sun.csv")
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset"))
 data_all_sun %>%
   count(Time)
 ```
@@ -709,11 +709,11 @@ ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
   geom_boxplot()
 ```
 
-### Early Noon vs Late Night Clustering
+### Clustering
 
-```{r plot1}
+```{r clust-initial-plot}
 data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Late Night") %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
   ggplot(., aes(x=humid_adj, y=humid_temp, color=Time)) +
   geom_point()
 ```
@@ -722,49 +722,89 @@ data_all_sun %>%
 library(mclust)
 set.seed(521)
 
-early_late_gmm <- data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Late Night") %>%
+gmm1 <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
   select(humid_adj, humid_temp) %>%
-  Mclust(., G=2, modelNames="VVV", prior=priorControl())
+  Mclust(., G=5, modelNames="VVV", prior=priorControl())
 
-early_late_clusters_data <- data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Late Night") %>%
+clusters_data_1 <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
   select(humid_adj, humid_temp) %>%
-  cbind(., early_late_gmm$classification)
+  cbind(., gmm1$classification)
 
-names(early_late_clusters_data)[3] <- "Cluster"
-early_late_clusters_data$Cluster <- as.factor(early_late_clusters_data$Cluster)
+names(clusters_data_1)[3] <- "Cluster"
+clusters_data_1$Cluster <- as.factor(clusters_data_1$Cluster)
 
-ggplot(early_late_clusters_data, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
+ggplot(clusters_data_1, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
   geom_point()
 ```
 
-```{r plot2}
-data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Early Morning") %>%
-  ggplot(., aes(x=hamatop, y=humid_temp, color=Time)) +
-  geom_point()
+Cluster 1 = Early Noon, Cluster 2 = Early Night, Cluster 3 = Early Night, Cluster 4 = Early Noon, Cluster 5 = Early Night
+
+```{r}
+clusters_real_data <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
+  select(humid_adj, humid_temp, Time, Hour, Day) %>%
+  cbind(., gmm1$classification)
+names(clusters_real_data)[6] <- "Cluster"
+clusters_real_data$Cluster <- as.factor(clusters_real_data$Cluster)
+
+acc1 <- clusters_real_data %>%
+  filter(Cluster == 1) %>%
+  count(Time) %>%
+  summarise(`Cluster 1 Accuracy %` = 100*n[2]/sum(n))
+
+acc2 <- clusters_real_data %>%
+  filter(Cluster == 2) %>%
+  count(Time) %>%
+  summarise(`Cluster 2 Accuracy %` = 100*n[1]/sum(n))
+
+acc3 <- clusters_real_data %>%
+  filter(Cluster == 3) %>%
+  count(Time) %>%
+  summarise(`Cluster 3 Accuracy %` = 100*n[1]/sum(n))
+
+acc4 <- clusters_real_data %>%
+  filter(Cluster == 4) %>%
+  count(Time) %>%
+  summarise(`Cluster 4 Accuracy %` = 100*n[2]/sum(n))
+
+acc5 <- clusters_real_data %>%
+  filter(Cluster == 5) %>%
+  count(Time) %>%
+  summarise(`Cluster 5 Accuracy %` = 100*n[1]/sum(n))
+
+cbind(acc1, acc2, acc3, acc4, acc5)
 ```
 
-```{r clustering-2}
-library(mclust)
-set.seed(521)
+Cluster 1 = Early Noon, Cluster 2 = Early Night, Cluster 3 = Early Night, Cluster 4 = Early Noon, Cluster 5 = Early Night
 
-early_both_gmm <- data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Early Morning") %>%
-  select(hamatop, humid_temp) %>%
-  Mclust(., G=2, modelNames="VVV", prior=priorControl())
+```{r gmm-means}
+gmm1$parameters$mean
+```
 
-early_both_clusters_data <- data_all_sun %>%
-  filter(Time == "Early Noon" | Time == "Early Morning") %>%
-  select(hamatop, humid_temp) %>%
-  cbind(., early_both_gmm$classification)
+Clusters 4 and 5 both have low humidity and high temperature but cluster 4 represents early noon while cluster 5 represents early night. Cluster 3 has high humidity and low temperature while cluster 5 has low humidity and high temperature but both represent early night.
 
-names(early_both_clusters_data)[3] <- "Cluster"
-early_both_clusters_data$Cluster <- as.factor(early_both_clusters_data$Cluster)
+```{r gmm-hist-comparisons}
+clusters_real_data %>%
+  filter(Cluster == 4 | Cluster == 5) %>%
+  ggplot(., aes(x=Hour, fill=Time)) +
+  geom_bar()
 
-ggplot(early_both_clusters_data, aes(x=hamatop, y=humid_temp, color=Cluster)) +
-  geom_point()
+clusters_real_data %>%
+  filter(Cluster == 4 | Cluster == 5) %>%
+  ggplot(., aes(x=Day, fill=Time)) +
+  geom_bar(position="fill")
+
+clusters_real_data %>%
+  filter(Cluster == 3 | Cluster == 5) %>%
+  ggplot(., aes(x=Hour, fill=Cluster)) +
+  geom_bar()
+
+clusters_real_data %>%
+  filter(Cluster == 3 | Cluster == 5) %>%
+  ggplot(., aes(x=Day, fill=Cluster)) +
+  geom_bar(position="fill")
 ```
 
 ### Incident PAR
