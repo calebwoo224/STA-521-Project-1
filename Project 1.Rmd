@@ -597,7 +597,7 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 ```{r k means PCA}
 comp = data.frame(pca_prcomp$x)
 wss = function(k) {
-  kmeans(comp, k, nstart = 10 )$tot.withinss
+  kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
 }
 k.values <- 1:7
 wss_values <- map_dbl(k.values, wss)
