@@ -788,11 +788,12 @@ plot(normal_glm)
 
 ```{r 5-data}
 library(tidyverse)
+library(gridExtra)
 data_all <- read_csv("data/data-all-dates-locations.csv")
 ```
 
 ```{r 5a}
-data_all %>%
+i_par_plot <- data_all %>%
   mutate(hamatop = case_when(
     hamatop == 0 ~ 1,
     T ~ hamatop
@@ -800,9 +801,9 @@ data_all %>%
   ggplot(., aes(x=log(hamatop))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
   scale_y_continuous(labels = scales::percent) +
-  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Percentage of readings")
+  labs(title="Incident PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
 
-data_all %>%
+r_par_plot <- data_all %>%
   mutate(hamabot = case_when(
     hamabot == 0 ~ 1,
     T ~ hamabot
@@ -810,7 +811,149 @@ data_all %>%
   ggplot(., aes(x=log(hamabot))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
   scale_y_continuous(labels = scales::percent) +
-  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Percentage of readings")
+  labs(title="Reflected PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+grid.arrange(i_par_plot, r_par_plot, nrow=1)
+```
+
+```{r 5b-1}
+p_3c_1 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="\u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_2 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="%RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_3 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_4 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3c_1, p_3c_2, p_3c_3, p_3c_4, nrow=2, ncol=2)
+```
+
+```{r 5b-2}
+p_3d_1 <- data_all %>%
+  mutate(humid_temp = humid_temp - mean(humid_temp)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="Mean Centered \u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_2 <- data_all %>%
+  mutate(humid_adj = humid_adj - mean(humid_adj)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="Mean Centered %RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_3 <- data_all %>%
+  mutate(hamatop = hamatop - mean(hamatop)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_4 <- data_all %>%
+  mutate(hamabot = hamabot - mean(hamabot)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3d_1, p_3d_2, p_3d_3, p_3d_4, nrow=2, ncol=2)
 ```
 
 
