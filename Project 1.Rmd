@@ -17,6 +17,8 @@ library(lubridate)
 library(ggcorrplot)
 library(RColorBrewer)
 library(scales)
+library(kableExtra)
+library(gridExtra)
 data_net <- read.csv("data/sonoma-data-net.csv")
 data_log <- read.csv("data/sonoma-data-log.csv")
 dates <- read_csv("data/dates.csv")
@@ -613,6 +615,8 @@ plot(comp, col=kmeans_pca$clust, pch=16)
 ```
 
 ```{r may-count}
+data_all <- read_csv("data/data-all-dates-locations.csv") %>%
+  select(-c("...1"))
 data_all %>%
   filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
   nrow()
@@ -621,7 +625,6 @@ data_all %>%
 78.2% of data is within May, 2004
 
 ```{r count-Times}
-library(tidyverse)
 data_all_sun <- read_csv("data/may-data-sun.csv")
 data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset"))
 data_all_sun %>%
@@ -676,8 +679,6 @@ ggplot(clusters_data_1, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
 Cluster 1 = Early Noon, Cluster 2 = Early Night, Cluster 3 = Early Night, Cluster 4 = Early Noon, Cluster 5 = Early Night
 
 ```{r cluster-accuracy}
-library(kableExtra)
-
 clusters_real_data <- data_all_sun %>%
   filter(Time == "Early Night" | Time == "Early Noon") %>%
   select(humid_adj, humid_temp, Time, Hour, Day, Height) %>%
@@ -728,32 +729,32 @@ Clusters 4 and 5 both have low humidity and high temperature but cluster 4 repre
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
   ggplot(., aes(x=Hour, fill=Time)) +
-  geom_bar()
+  geom_bar() +
+  labs(title="Clusters 4 & 5 Histogram by Hour", y="# of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
   ggplot(., aes(x=Day, fill=Time)) +
-  geom_bar(position="fill")
+  geom_bar(position="fill") +
+  labs(title="Clusters 4 & 5 Histogram by Day", y="Proportion of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
   ggplot(., aes(x=Height, fill=Time)) +
-  geom_histogram(position="fill", binwidth=5)
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 4 & 5 Histogram by Height", y="Proportion of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 3 | Cluster == 5) %>%
   ggplot(., aes(x=Day, fill=Cluster)) +
-  geom_bar(position="fill")
+  geom_bar(position="fill") +
+  labs(title="Clusters 3 & 5 Histogram by Day", y="Proportion of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 3 | Cluster == 5) %>%
   ggplot(., aes(x=Height, fill=Cluster)) +
-  geom_histogram(position="fill", binwidth=5)
-
-clusters_real_data %>%
-  filter((Cluster == 3 | Cluster == 5) & (Day == 11 | Day == 12)) %>%
-  ggplot(., aes(x=Height, fill=Cluster)) +
-  geom_histogram(position="fill", binwidth=5)
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 3 & 5 Histogram by Height", y="Proportion of Observations")
 ```
 
 ### Incident PAR
@@ -771,12 +772,6 @@ plot(normal_glm)
 ## 5
 
 ### a)
-
-```{r 5-data}
-library(tidyverse)
-library(gridExtra)
-data_all <- read_csv("data/data-all-dates-locations.csv")
-```
 
 ```{r 5a}
 i_par_plot <- data_all %>%
