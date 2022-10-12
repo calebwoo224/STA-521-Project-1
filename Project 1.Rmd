@@ -441,7 +441,7 @@ data_all %>%
   unique()
 ```
 
-There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40. This removes 98 observations.
+There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40. This removes 98 observations. 271,776 observations left.
 
 ```{r hamabot-pre-removal}
 quantile(data_all$hamabot)
@@ -740,8 +740,6 @@ gmm_means %>%
 
 Clusters 4 and 5 both have low humidity and high temperature but cluster 4 represents early noon while cluster 5 represents early night. Cluster 3 has high humidity and low temperature while cluster 5 has low humidity and high temperature but both represent early night.
 
-TODO look at heights between clusters
-
 ```{r gmm-hist-comparisons}
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
@@ -787,5 +785,32 @@ plot(normal_glm)
 ```
 
 ## 5
+
+```{r 5-data}
+library(tidyverse)
+data_all <- read_csv("data/data-all-dates-locations.csv")
+```
+
+```{r 5a}
+data_all %>%
+  mutate(hamatop = case_when(
+    hamatop == 0 ~ 1,
+    T ~ hamatop
+  )) %>%
+  ggplot(., aes(x=log(hamatop))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+data_all %>%
+  mutate(hamabot = case_when(
+    hamabot == 0 ~ 1,
+    T ~ hamabot
+  )) %>%
+  ggplot(., aes(x=log(hamabot))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Percentage of readings")
+```
 
 
