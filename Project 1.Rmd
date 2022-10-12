@@ -65,33 +65,7 @@ data_log %>%
   labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
 ```
 
-Humidity
-
 ```{r humidity}
-data_net %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
-  select(humidity) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
   ggplot(data=., aes(x=humidity)) +
@@ -104,34 +78,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Humidity Histogram", x="Humidity", y="Count")
 ```
-
-Adjusted Humidity
-
 ```{r adj-humidity}
-data_net %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
   ggplot(data=., aes(x=humid_adj)) +
@@ -144,34 +91,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Adjusted Humidity Histogram", x="Humidity", y="Count")
 ```
-
-Temperature
-
 ```{r temperature}
-data_net %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
   ggplot(data=., aes(x=humid_temp)) +
@@ -186,6 +106,8 @@ data_log %>%
 ```
 
 Incident PAR
+show histograms before conversion
+don't filter yet
 
 ```{r initial-hamatop}
 data_net %>%
@@ -226,18 +148,6 @@ data_log <- data_log %>%
 
 data_net %>%
   filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4 & hamatop < 2200) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-
-data_net %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
   ggplot(data=., aes(x=hamatop)) +
   geom_histogram(bins=20) +
   labs(title="Network Incident PAR Histogram", x="Incident PAR", y="Count")
@@ -250,6 +160,7 @@ data_log %>%
 ```
 
 Reflected PAR
+show histograms before conversion
 
 ```{r initial-hamabot}
 data_net %>%
@@ -285,18 +196,6 @@ data_net <- data_net %>%
 
 data_log <- data_log %>%
   mutate(hamabot=0.0185*hamabot)
-
-data_net %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
 
 data_net %>%
   filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
@@ -357,7 +256,6 @@ The network data and logs data have identical columns in this merged data frame 
 data_all <- data_all %>%
   select(-ends_with(".net"), -result_time.log)
 names(data_all)[3:11] <- str_replace(names(data_all)[3:11], ".log", "")
-names(data_all)
 ```
 
 There are 16 total variables in my complete merged data frame that includes network and logs data, dates data, and locations data.
@@ -374,6 +272,8 @@ data_all <- data_all %>%
 
 ### d)
 
+Quantiles before removal, quantiles and histograms after removal
+
 Since sensors with low batteries were not accurate, we removed all data with voltages greater than 3 and less than 2.4 like Tolle et al. This removed 26011 observations. Below are the quantiles and histograms of each variable after removing the voltages and before removing any other outliers.
 
 ```{r voltage-outliers}
@@ -382,14 +282,6 @@ data_all %>%
   nrow()
 data_all <- data_all %>%
   filter(voltage <= 3 & voltage >= 2.4)
-```
-
-```{r humidity-pre-removal}
-quantile(data_all$humidity)
-
-data_all %>%
-  ggplot(., aes(x=humidity)) +
-  geom_histogram()
 ```
 
 ```{r humid_adj-removal}
@@ -401,16 +293,6 @@ data_all %>%
 ```
 
 The quantiles in humid_adj more closely matches that of Tolle et al. compared to the quantiles of humidity so we should use humid_adj in place of humidity. This allows us to remove 1 more variable so we have a total of 15 variables. There do not seem to be any other outliers in humid_adj.
-
-```{r temp-pre-removal}
-quantile(data_all$humid_temp)
-
-data_all %>%
-  ggplot(., aes(x=humid_temp)) +
-  geom_histogram()
-```
-
-The quantiles of temperature match up well with that of Tolle et al. so there does not seem to be any other outliers in temperature.
 
 ```{r hamatop-pre-removal}
 quantile(data_all$hamatop)
@@ -734,12 +616,6 @@ clusters_real_data %>%
 
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
-  ggplot(., aes(x=Day, fill=Time)) +
-  geom_bar(position="fill") +
-  labs(title="Clusters 4 & 5 Histogram by Day", y="Proportion of Observations")
-
-clusters_real_data %>%
-  filter(Cluster == 4 | Cluster == 5) %>%
   ggplot(., aes(x=Height, fill=Time)) +
   geom_histogram(position="fill", binwidth=5) +
   labs(title="Clusters 4 & 5 Histogram by Height", y="Proportion of Observations")
@@ -757,21 +633,11 @@ clusters_real_data %>%
   labs(title="Clusters 3 & 5 Histogram by Height", y="Proportion of Observations")
 ```
 
-### Incident PAR
-
-```{r glm}
-library(stats)
-normal_glm <- glm(hamatop ~ humid_temp + humid_adj + Height + Time, family = gaussian(), data = data_all_sun)
-summary(normal_glm)
-```
-
-```{r glm-diagnostics}
-plot(normal_glm)
-```
-
 ## 5
 
 ### a)
+
+get rid of 0s and say why
 
 ```{r 5a}
 i_par_plot <- data_all %>%
@@ -941,6 +807,8 @@ grid.arrange(p_3d_1, p_3d_2, p_3d_3, p_3d_4, nrow=2, ncol=2)
 
 ### c)
 
+add height to legend labels
+
 ```{r 5c-1}
 library(lubridate)
 data_all %>%
@@ -1024,6 +892,8 @@ data_all %>%
 ### d)
 
 114980 network observations
+
+putting net and log on same graphs for 1,2,3
 
 ```{r 5d-net-merges}
 data_net <- merge(data_net, dates, by = "epoch", all.x = T, suffixes = c(".net", ".dates"))
