@@ -1044,8 +1044,81 @@ data_all %>%
 
 ### d)
 
-```{r}
+114980 network observations
 
+```{r 5d-net-merges}
+data_net <- merge(data_net, dates, by = "epoch", all.x = T, suffixes = c(".net", ".dates"))
+data_net <- merge(data_net, locations, by = "nodeid", all.x = T, suffixes = c(".net", ".locations"))
 ```
 
+```{r 5d-net-yields-dates}
+net_dates_yield <- c()
+dates_range <- c()
+nodes_per <- c()
+for (date in as.list(unique(as.Date(dates$epochDates)))) {
+  date_yield <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    nrow()
+  net_dates_yield <- c(net_dates_yield, date_yield/nrow(locations))
+  
+  date_nodes <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    pull()
+  d <- rep(date, length(date_nodes))
+  dates_range <- c(dates_range, d)
+  nodes_per <- c(nodes_per, date_nodes)
+}
+
+yields_dates <- dates %>%
+  distinct(as.Date(epochDates)) %>%
+  cbind(., net_dates_yield)
+names(yields_dates) <- c("Day", "Yield")
+
+yields_dates %>%
+  ggplot(., aes(x=100*Yield)) +
+  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
+  labs(title="Per Day Yields", x="Yield %", y="% of Days")
+
+yields_dates %>%
+  ggplot(., aes(x=Day, y=100*Yield)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Per Day Yields", y="Yield %")
+
+data.frame(cbind(dates_range, nodes_per)) %>%
+  merge(., locations, by.x="nodes_per", by.y="nodeid", all.x=T) %>%
+  mutate(Height = as.numeric(Height),
+         dates_range = as.Date(dates_range, origin="1970-01-01")) %>%
+  ggplot(., aes(x=dates_range, y=Height)) +
+  geom_point()
+```
+
+```{r 5d-net-yields-2}
+net_nodes_yield <- c()
+for (node_id in locations$nodeid) {
+  node_yield <- data_net %>%
+    filter(nodeid == node_id & !is.na(voltage)) %>%
+    distinct(as.Date(epochDates)) %>%
+    nrow()
+  net_nodes_yield <- c(net_nodes_yield, node_yield/length(unique(as.Date(dates$epochDates))))
+}
+
+yields_nodes <- locations %>%
+  mutate(Height = as.numeric(Height)) %>%
+  distinct(nodeid, Height) %>%
+  cbind(., net_nodes_yield)
+names(yields_nodes) <- c("Node ID", "Height", "Yield")
+
+yields_nodes %>%
+  ggplot(., aes(x=100*Yield)) +
+  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
+  labs(title="Per Node Yields", x="Yield %", y="% of Nodes")
+
+yields_nodes %>%
+  ggplot(., aes(x=100*Yield, y=Height)) +
+  geom_point() +
+  labs(title="Per Node Yields", x="Yield %", y="Node Height (m)")
+```
 
