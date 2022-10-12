@@ -17,25 +17,14 @@ library(lubridate)
 library(ggcorrplot)
 library(RColorBrewer)
 library(scales)
+library(kableExtra)
+library(gridExtra)
 library(factoextra)
 data_net <- read.csv("data/sonoma-data-net.csv")
 data_log <- read.csv("data/sonoma-data-log.csv")
-```
-
-```{r dates}
-dates <- read.table("data/sonoma-dates", sep = " ")
-dates <- data.frame(t(dates)[-2,], row.names = NULL)
-names(dates) <- dates[1,]
-dates <- dates[-1,]
-dates <- dates[-13001,]
-dates[1,] <- c("1",	"Tue Apr 27 17:10:00 2004",	"12536.0069444444")
-row.names(dates) <- NULL
-
+dates <- read_csv("data/dates.csv")
 dates <- dates %>%
-  mutate(epochNums = as.integer(epochNums),
-         epochDates = as.POSIXct(epochDates, format = "%a %b %d %H:%M:%S %Y"),
-         epochDays = as.numeric(epochDays))
-names(dates)[1] <- "epoch"
+  select(-c("...1"))
 ```
 
 ## 2.
@@ -77,33 +66,7 @@ data_log %>%
   labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
 ```
 
-Humidity
-
 ```{r humidity}
-data_net %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
-  select(humidity) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humidity) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
   ggplot(data=., aes(x=humidity)) +
@@ -116,34 +79,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Humidity Histogram", x="Humidity", y="Count")
 ```
-
-Adjusted Humidity
-
 ```{r adj-humidity}
-data_net %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_adj) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
   ggplot(data=., aes(x=humid_adj)) +
@@ -156,34 +92,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Adjusted Humidity Histogram", x="Humidity", y="Count")
 ```
-
-Temperature
-
 ```{r temperature}
-data_net %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
-  select(humid_temp) %>%
-  pull() %>%
-  max()
-
 data_net %>%
   filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
   ggplot(data=., aes(x=humid_temp)) +
@@ -198,6 +107,8 @@ data_log %>%
 ```
 
 Incident PAR
+show histograms before conversion
+don't filter yet
 
 ```{r initial-hamatop}
 data_net %>%
@@ -238,18 +149,6 @@ data_log <- data_log %>%
 
 data_net %>%
   filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4 & hamatop < 2200) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-
-data_net %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
   ggplot(data=., aes(x=hamatop)) +
   geom_histogram(bins=20) +
   labs(title="Network Incident PAR Histogram", x="Incident PAR", y="Count")
@@ -262,6 +161,7 @@ data_log %>%
 ```
 
 Reflected PAR
+show histograms before conversion
 
 ```{r initial-hamabot}
 data_net %>%
@@ -297,18 +197,6 @@ data_net <- data_net %>%
 
 data_log <- data_log %>%
   mutate(hamabot=0.0185*hamabot)
-
-data_net %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
 
 data_net %>%
   filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
@@ -355,11 +243,8 @@ row.names(data_all) <- NULL
 ### c)
 
 ```{r locations}
-locations <- read.table("data/mote-location-data.txt")
-names(locations) <- locations[1,]
-names(locations)[1] <- "nodeid"
-locations <- data.frame(locations[-1,])
-row.names(locations) <- NULL
+locations <- read_csv("data/locations.csv") %>%
+  select(-c("...1"))
 ```
 
 ```{r locations-merge}
@@ -372,26 +257,32 @@ The network data and logs data have identical columns in this merged data frame 
 data_all <- data_all %>%
   select(-ends_with(".net"), -result_time.log)
 names(data_all)[3:11] <- str_replace(names(data_all)[3:11], ".log", "")
-names(data_all)
 ```
 
 There are 16 total variables in my complete merged data frame that includes network and logs data, dates data, and locations data.
 
-### d)
-
-Since sensors with low batteries were not accurate, we removed all data with voltages greater than 3 and less than 2.4 like Tolle et al. Below are the quantiles and histograms of each variable after removing the voltages and before removing any other outliers.
-
-```{r voltage-outliers}
+```{r remove-missing-locations}
+data_all %>%
+  filter(is.na(Height) & is.na(Direc) & is.na(Dist) & is.na(Tree)) %>%
+  nrow()
 data_all <- data_all %>%
-  filter(voltage <= 3 & voltage >= 2.4)
+  filter(!is.na(Height) & !is.na(Direc) & !is.na(Dist) & !is.na(Tree))
 ```
 
-```{r humidity-pre-removal}
-quantile(data_all$humidity)
+6091 missing location observations.
 
+### d)
+
+Quantiles before removal, quantiles and histograms after removal
+
+Since sensors with low batteries were not accurate, we removed all data with voltages greater than 3 and less than 2.4 like Tolle et al. This removed 26011 observations. Below are the quantiles and histograms of each variable after removing the voltages and before removing any other outliers.
+
+```{r voltage-outliers}
 data_all %>%
-  ggplot(., aes(x=humidity)) +
-  geom_histogram()
+  filter(voltage > 3 | voltage < 2.4) %>%
+  nrow()
+data_all <- data_all %>%
+  filter(voltage <= 3 & voltage >= 2.4)
 ```
 
 ```{r humid_adj-removal}
@@ -403,16 +294,6 @@ data_all %>%
 ```
 
 The quantiles in humid_adj more closely matches that of Tolle et al. compared to the quantiles of humidity so we should use humid_adj in place of humidity. This allows us to remove 1 more variable so we have a total of 15 variables. There do not seem to be any other outliers in humid_adj.
-
-```{r temp-pre-removal}
-quantile(data_all$humid_temp)
-
-data_all %>%
-  ggplot(., aes(x=humid_temp)) +
-  geom_histogram()
-```
-
-The quantiles of temperature match up well with that of Tolle et al. so there does not seem to be any other outliers in temperature.
 
 ```{r hamatop-pre-removal}
 quantile(data_all$hamatop)
@@ -429,7 +310,7 @@ data_all %>%
   unique()
 ```
 
-There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40.
+There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40. This removes 98 observations. 271,776 observations left.
 
 ```{r hamabot-pre-removal}
 quantile(data_all$hamabot)
@@ -444,6 +325,9 @@ The quantiles of reflected PAR match up well with that of Tolle et al. so there 
 Below are the quantiles and histograms of each variable after removing both the voltages and observations with node 40. 
 
 ```{r remove-node-40}
+data_all %>%
+  filter(nodeid == 40) %>%
+  nrow()
 data_all <- data_all %>%
   filter(nodeid != 40)
 ```
@@ -483,9 +367,10 @@ data_all %>%
 All quantiles and histograms of humidity, temperature, incident PAR, and reflected PAR match up well with the quantiles of Tolle et al. after removing observations with voltages greater than 3 and less than 2.4 and removing observations with node 40.
 
 ```{r write-csv-data-all}
-data_all <- read_csv("data/data-all-dates-locations.csv")
-data_all <- data_all %>%
-  filter(!is.na(Height) & !is.na(Direc) & !is.na(Dist) & !is.na(Tree))
+data_all %>%
+  filter_all(any_vars(is.na(.))) %>%
+  nrow()
+
 #write.csv(data_all, "data/data-all-dates-locations.csv")
 ```
 
@@ -667,6 +552,8 @@ fviz_pca(pca_prcomp, axes = c(4, 5),geom=c("point"),col.ind = kmeans_pca$clust,c
 ```
 
 ```{r may-count}
+data_all <- read_csv("data/data-all-dates-locations.csv") %>%
+  select(-c("...1"))
 data_all %>%
   filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
   nrow()
@@ -700,7 +587,8 @@ ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
 data_all_sun %>%
   filter(Time == "Early Night" | Time == "Early Noon") %>%
   ggplot(., aes(x=humid_adj, y=humid_temp, color=Time)) +
-  geom_point()
+  geom_point() +
+  labs(title="Early Night vs Early Noon", x="Humidity", y="Temperature")
 ```
 
 ```{r clustering-1}
@@ -721,51 +609,55 @@ names(clusters_data_1)[3] <- "Cluster"
 clusters_data_1$Cluster <- as.factor(clusters_data_1$Cluster)
 
 ggplot(clusters_data_1, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
-  geom_point()
+  geom_point() +
+  labs(title="GMM Clustering", x="Humidity", y="Temperature")
 ```
 
 Cluster 1 = Early Noon, Cluster 2 = Early Night, Cluster 3 = Early Night, Cluster 4 = Early Noon, Cluster 5 = Early Night
 
-```{r}
+```{r cluster-accuracy}
 clusters_real_data <- data_all_sun %>%
   filter(Time == "Early Night" | Time == "Early Noon") %>%
-  select(humid_adj, humid_temp, Time, Hour, Day) %>%
+  select(humid_adj, humid_temp, Time, Hour, Day, Height) %>%
   cbind(., gmm1$classification)
-names(clusters_real_data)[6] <- "Cluster"
+names(clusters_real_data)[7] <- "Cluster"
 clusters_real_data$Cluster <- as.factor(clusters_real_data$Cluster)
 
 acc1 <- clusters_real_data %>%
   filter(Cluster == 1) %>%
   count(Time) %>%
-  summarise(`Cluster 1 Accuracy %` = 100*n[2]/sum(n))
+  summarise(X1 = 100*n[2]/sum(n))
 
 acc2 <- clusters_real_data %>%
   filter(Cluster == 2) %>%
   count(Time) %>%
-  summarise(`Cluster 2 Accuracy %` = 100*n[1]/sum(n))
+  summarise(X2 = 100*n[1]/sum(n))
 
 acc3 <- clusters_real_data %>%
   filter(Cluster == 3) %>%
   count(Time) %>%
-  summarise(`Cluster 3 Accuracy %` = 100*n[1]/sum(n))
+  summarise(X3 = 100*n[1]/sum(n))
 
 acc4 <- clusters_real_data %>%
   filter(Cluster == 4) %>%
   count(Time) %>%
-  summarise(`Cluster 4 Accuracy %` = 100*n[2]/sum(n))
+  summarise(X4 = 100*n[2]/sum(n))
 
 acc5 <- clusters_real_data %>%
   filter(Cluster == 5) %>%
   count(Time) %>%
-  summarise(`Cluster 5 Accuracy %` = 100*n[1]/sum(n))
-
-cbind(acc1, acc2, acc3, acc4, acc5)
+  summarise(X5 = 100*n[1]/sum(n))
 ```
 
 Cluster 1 = Early Noon, Cluster 2 = Early Night, Cluster 3 = Early Night, Cluster 4 = Early Noon, Cluster 5 = Early Night
 
 ```{r gmm-means}
-gmm1$parameters$mean
+gmm_means <- rbind(cbind(acc1, acc2, acc3, acc4, acc5), data.frame(gmm1$parameters$mean))
+names(gmm_means) <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5")
+rownames(gmm_means) <- c("Accuracy %", "Humidity Mean", "Temperature Mean")
+gmm_means %>%
+  kbl(digits = 3, caption = "GMM Accuracy and Cluster Means") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
 ```
 
 Clusters 4 and 5 both have low humidity and high temperature but cluster 4 represents early noon while cluster 5 represents early night. Cluster 3 has high humidity and low temperature while cluster 5 has low humidity and high temperature but both represent early night.
@@ -774,61 +666,362 @@ Clusters 4 and 5 both have low humidity and high temperature but cluster 4 repre
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
   ggplot(., aes(x=Hour, fill=Time)) +
-  geom_bar()
+  geom_bar() +
+  labs(title="Clusters 4 & 5 Histogram by Hour", y="# of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 4 | Cluster == 5) %>%
-  ggplot(., aes(x=Day, fill=Time)) +
-  geom_bar(position="fill")
-
-clusters_real_data %>%
-  filter(Cluster == 3 | Cluster == 5) %>%
-  ggplot(., aes(x=Hour, fill=Cluster)) +
-  geom_bar()
+  ggplot(., aes(x=Height, fill=Time)) +
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 4 & 5 Histogram by Height", y="Proportion of Observations")
 
 clusters_real_data %>%
   filter(Cluster == 3 | Cluster == 5) %>%
   ggplot(., aes(x=Day, fill=Cluster)) +
-  geom_bar(position="fill")
+  geom_bar(position="fill") +
+  labs(title="Clusters 3 & 5 Histogram by Day", y="Proportion of Observations")
+
+clusters_real_data %>%
+  filter(Cluster == 3 | Cluster == 5) %>%
+  ggplot(., aes(x=Height, fill=Cluster)) +
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 3 & 5 Histogram by Height", y="Proportion of Observations")
 ```
 
-### Incident PAR
-
-```{r glm}
-library(stats)
-normal_glm <- glm(hamatop ~ humid_temp + humid_adj + Height + Time, family = gaussian(), data = data_all_sun)
-summary(normal_glm)
-```
-
-```{r glm-diagnostics}
-plot(normal_glm)
-```
 ## 5
-  a)
-```{r}
-log_transform = function(x){
-  log_list = c()
-  n = length(x)
-  for(i in 1:n){
-    if(x[i]==0){
-      log_list = append(log_list,0)
-    }
-    else{
-      log_list = append(log_list,log(x[i]))
-    }
-  }
-  return(log_list)
+
+### a)
+
+get rid of 0s and say why
+
+```{r 5a}
+i_par_plot <- data_all %>%
+  mutate(hamatop = case_when(
+    hamatop == 0 ~ 1,
+    T ~ hamatop
+  )) %>%
+  ggplot(., aes(x=log(hamatop))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Incident PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+r_par_plot <- data_all %>%
+  mutate(hamabot = case_when(
+    hamabot == 0 ~ 1,
+    T ~ hamabot
+  )) %>%
+  ggplot(., aes(x=log(hamabot))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Reflected PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+grid.arrange(i_par_plot, r_par_plot, nrow=1)
+```
+
+### b)
+
+```{r 5b-1}
+p_3c_1 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="\u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_2 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="%RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_3 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_4 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3c_1, p_3c_2, p_3c_3, p_3c_4, nrow=2, ncol=2)
+```
+
+```{r 5b-2}
+p_3d_1 <- data_all %>%
+  mutate(humid_temp = humid_temp - mean(humid_temp)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="Mean Centered \u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_2 <- data_all %>%
+  mutate(humid_adj = humid_adj - mean(humid_adj)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="Mean Centered %RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_3 <- data_all %>%
+  mutate(hamatop = hamatop - mean(hamatop)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_4 <- data_all %>%
+  mutate(hamabot = hamabot - mean(hamabot)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3d_1, p_3d_2, p_3d_3, p_3d_4, nrow=2, ncol=2)
+```
+
+### c)
+
+add height to legend labels
+
+```{r 5c-1}
+library(lubridate)
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Temperature`) %>%
+  arrange(., desc(`Mean Temperature`)) %>%
+  slice(1:3)
+
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Temperature`) %>%
+  arrange(., `Mean Temperature`) %>%
+  slice(1:3)
+
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Temperature`) %>%
+  arrange(., `Mean Temperature`) %>%
+  slice(26:28)
+
+data_all %>%
+  filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 118 | nodeid == 20 | nodeid == 11)) %>%
+  mutate(nodeid = factor(nodeid),
+         Time = format(epochDates, "%H:%M")) %>%
+  ggplot(., aes(x=Time)) +
+  geom_point(aes(y=humid_temp, color=nodeid)) +
+  geom_line(aes(y=humid_temp, group=nodeid, color=nodeid)) +
+  scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
+  labs(title="May 1 Temperature vs Time", y="Temperature (\u00b0C)", color="Node id")
+```
+
+```{r 5c-2}
+library(lubridate)
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Humidity`) %>%
+  arrange(., desc(`Mean Humidity`)) %>%
+  slice(1:3)
+
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Humidity`) %>%
+  arrange(., `Mean Humidity`) %>%
+  slice(1:3)
+
+data_all %>%
+  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+  group_by(nodeid) %>%
+  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+  ungroup() %>%
+  distinct(nodeid, `Mean Humidity`) %>%
+  arrange(., `Mean Humidity`) %>%
+  slice(26:28)
+
+data_all %>%
+  filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 20 | nodeid == 17 | nodeid == 115)) %>%
+  mutate(nodeid = factor(nodeid),
+         Time = format(epochDates, "%H:%M")) %>%
+  ggplot(., aes(x=Time)) +
+  geom_point(aes(y=humid_adj, color=nodeid)) +
+  geom_line(aes(y=humid_adj, group=nodeid, color=nodeid)) +
+  scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
+  labs(title="May 1 Relative Humidity vs Time", y="%RH", color="Node id")
+```
+
+### d)
+
+114980 network observations
+
+putting net and log on same graphs for 1,2,3
+
+```{r 5d-net-merges}
+data_net <- merge(data_net, dates, by = "epoch", all.x = T, suffixes = c(".net", ".dates"))
+data_net <- merge(data_net, locations, by = "nodeid", all.x = T, suffixes = c(".net", ".locations"))
+```
+
+```{r 5d-net-yields-dates}
+net_dates_yield <- c()
+dates_range <- c()
+nodes_per <- c()
+for (date in as.list(unique(as.Date(dates$epochDates)))) {
+  date_yield <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    nrow()
+  net_dates_yield <- c(net_dates_yield, date_yield/nrow(locations))
+  
+  date_nodes <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    pull()
+  d <- rep(date, length(date_nodes))
+  dates_range <- c(dates_range, d)
+  nodes_per <- c(nodes_per, date_nodes)
 }
 
-data_all %>%
-  summarise(
-    log_hamatop = log_transform(hamatop)
-  ) %>%
-  ggplot(aes(x=log_hamatop)) + geom_histogram(aes(y=stat(width*density)),binwidth = 1)+scale_y_continuous(labels = percent_format())
+yields_dates <- dates %>%
+  distinct(as.Date(epochDates)) %>%
+  cbind(., net_dates_yield)
+names(yields_dates) <- c("Day", "Yield")
 
-data_all %>%
-  summarise(
-    log_hamabot = log_transform(hamabot)
-  ) %>%
-  ggplot(aes(x=log_hamabot)) + geom_histogram(aes(y=stat(width*density)),binwidth = 0.35)+scale_y_continuous(labels = percent_format())
+yields_dates %>%
+  ggplot(., aes(x=100*Yield)) +
+  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
+  labs(title="Per Day Yields", x="Yield %", y="% of Days")
+
+yields_dates %>%
+  ggplot(., aes(x=Day, y=100*Yield)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Per Day Yields", y="Yield %")
+
+data.frame(cbind(dates_range, nodes_per)) %>%
+  merge(., locations, by.x="nodes_per", by.y="nodeid", all.x=T) %>%
+  mutate(Height = as.numeric(Height),
+         dates_range = as.Date(dates_range, origin="1970-01-01")) %>%
+  ggplot(., aes(x=dates_range, y=Height)) +
+  geom_point()
+```
+
+```{r 5d-net-yields-2}
+net_nodes_yield <- c()
+for (node_id in locations$nodeid) {
+  node_yield <- data_net %>%
+    filter(nodeid == node_id & !is.na(voltage)) %>%
+    distinct(as.Date(epochDates)) %>%
+    nrow()
+  net_nodes_yield <- c(net_nodes_yield, node_yield/length(unique(as.Date(dates$epochDates))))
+}
+
+yields_nodes <- locations %>%
+  mutate(Height = as.numeric(Height)) %>%
+  distinct(nodeid, Height) %>%
+  cbind(., net_nodes_yield)
+names(yields_nodes) <- c("Node ID", "Height", "Yield")
+
+yields_nodes %>%
+  ggplot(., aes(x=100*Yield)) +
+  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
+  labs(title="Per Node Yields", x="Yield %", y="% of Nodes")
+
+yields_nodes %>%
+  ggplot(., aes(x=100*Yield, y=Height)) +
+  geom_point() +
+  labs(title="Per Node Yields", x="Yield %", y="Node Height (m)")
 ```
