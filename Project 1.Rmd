@@ -19,6 +19,7 @@ library(RColorBrewer)
 library(scales)
 library(kableExtra)
 library(gridExtra)
+library(factoextra)
 data_net <- read.csv("data/sonoma-data-net.csv")
 data_log <- read.csv("data/sonoma-data-log.csv")
 dates <- read_csv("data/dates.csv")
@@ -429,17 +430,17 @@ count(data_all,Sunlight)
 
 #Add more?
 data_all %>% 
-  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point()
-data_all %>% 
+  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point(alpha=0.05)
+data_all %>%
   ggplot(aes(x=hour,y=hamatop)) + geom_point()
 data_all %>%
-  ggplot(aes(x=hour,y=hamatop, col=Height)) + geom_point()
+  ggplot(aes(x=humid_temp,y=hamatop,col=Sunlight)) + geom_point(alpha=0.05)
 data_all %>%
-  ggplot(aes(x=humid_temp,y=hamatop)) + geom_point()
+  ggplot(aes(x=humid_adj,y=hamatop,col=Sunlight)) + geom_point(alpha=0.05)
 data_all %>% 
-  ggplot(aes(x=humid_adj,y=hamabot, col = Sunlight)) + geom_point()
+  ggplot(aes(x=humid_adj,y=hamabot, col = Sunlight)) + geom_point(alpha=0.05)
 data_all %>% 
-  ggplot(aes(x=humid_temp,y=hamabot, col=Sunlight)) + geom_point()
+  ggplot(aes(x=humid_temp,y=hamabot, col=Sunlight)) + geom_point(alpha=0.05)
 #Abnormal values of reflected ray at odd hours at higher levels of heights.
 data_all %>% 
   ggplot(aes(x=hour,y=hamabot)) + geom_point()
@@ -447,26 +448,69 @@ data_all %>%
 ## 3
 ### b)
 ```{r}
-#Positive correlation only between hamatop and hamabot?
-corr = round(x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman")))
+corr =x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman"))
 ggcorrplot(corr,method="square")
 ```
 
 ### c)
 ```{r}
 data_all %>%
-  ggplot(aes(x=Date,y=hamatop,col=Height)) + geom_point()
+  group_by(Date,Height)%>%
+  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_hamatop,col=Height,group=Height))+ geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
 data_all %>%
-  ggplot(aes(x=Date,y=hamabot,col=Height)) + geom_point()
+  group_by(Date,Height)%>%
+  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_hamabot,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
 data_all %>%
-  ggplot(aes(x=Date,y=humid_adj,col=Height)) + geom_point()
+  group_by(Date,Height)%>%
+  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_humid,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
 data_all %>%
-  ggplot(aes(x=Date,y=humid_temp,col=Height)) + geom_point()
+  group_by(Date,Height)%>%
+  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_temp,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
+
+
+data_all %>%
+  group_by(dayofweek,Height)%>%
+  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
+  ggplot(aes(x=dayofweek,y=avg_hamatop,col=Height,group=Height))+ geom_line()
+data_all %>%
+  group_by(dayofweek,Height)%>%
+  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
+  ggplot(aes(x=dayofweek,y=avg_hamabot,col=Height,group=Height)) + geom_line()
+data_all %>%
+  group_by(dayofweek,Height)%>%
+  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
+  ggplot(aes(x=dayofweek,y=avg_humid,col=Height,group=Height)) + geom_line()
+data_all %>%
+  group_by(dayofweek,Height)%>%
+  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
+  ggplot(aes(x=dayofweek,y=avg_temp,col=Height,group=Height)) + geom_line()
+
+
+data_all %>%
+  group_by(hour,Height)%>%
+  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_hamatop,col=Height,group=Height))+ geom_line()
+data_all %>%
+  group_by(hour,Height)%>%
+  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_hamabot,col=Height,group=Height)) + geom_line()
+data_all %>%
+  group_by(hour,Height)%>%
+  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_humid,col=Height,group=Height)) + geom_line()
+data_all %>%
+  group_by(hour,Height)%>%
+  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_temp,col=Height,group=Height)) + geom_line()
 ```
 ### d)
 ```{r}
 names(data_all)
-cols_name = c("hamatop","hamabot","Height","hour","dayofweek","humid_temp","humid_adj")
+cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj","hour","dayofweek")
 data_filtered = data_all |>
   select(all_of(cols_name)) |>
   data.frame()
@@ -478,13 +522,16 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 ```
 
 ## 4
-
+Through the k-means clustering of the Principal Components, it can be observed that while plotting the components that explain a high variability of the data, humidity and temperature appear in opposite directions, hence confirming their negative correlation with each other. \newline
+Also, when we consider the 3 clusters in the plot of PC1 against PC2, which cumulatively explain approx. $72\%$ of our data, we can observe that the darkest cluster (represented by 1.0) represents values that contain high values of height, incident PAR and reflected PAR and relatively high values of temperature, leading to lower values of relative humidity. The second cluster (represented by 2.0) -> Lower values of height with higher temperature, higher incident PAR, higher reflect PAR and lower humidity. Third cluster (represented by 3.0) -> lower values of height, higher humidity, lower temperature, lower incident and reflected PAR.
 ```{r k means PCA}
+#Try grouping and checking over the week
 comp = data.frame(pca_prcomp$x)
 wss = function(k) {
   kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
 }
-k.values <- 1:7
+
+k.values <- 1:5
 wss_values <- map_dbl(k.values, wss)
 plot(k.values, wss_values,
        type="b", pch = 19, frame = FALSE, 
@@ -492,8 +539,16 @@ plot(k.values, wss_values,
        ylab="Total within-clusters sum of squares")
 # 3?
 kmeans_pca = kmeans(comp,3)
-palette(alpha(brewer.pal(9,'Set1'), 0.5))
-plot(comp, col=kmeans_pca$clust, pch=16)
+fviz_pca(pca_prcomp, axes = c(1, 2),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(3, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(3, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(4, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
 ```
 
 ```{r may-count}
@@ -970,4 +1025,3 @@ yields_nodes %>%
   geom_point() +
   labs(title="Per Node Yields", x="Yield %", y="Node Height (m)")
 ```
-
