@@ -802,3 +802,32 @@ summary(normal_glm)
 ```{r glm-diagnostics}
 plot(normal_glm)
 ```
+## 5
+  a)
+```{r}
+log_transform = function(x){
+  log_list = c()
+  n = length(x)
+  for(i in 1:n){
+    if(x[i]==0){
+      log_list = append(log_list,0)
+    }
+    else{
+      log_list = append(log_list,log(x[i]))
+    }
+  }
+  return(log_list)
+}
+
+data_all %>%
+  summarise(
+    log_hamatop = log_transform(hamatop)
+  ) %>%
+  ggplot(aes(x=log_hamatop)) + geom_histogram(aes(y=stat(width*density)),binwidth = 1)+scale_y_continuous(labels = percent_format())
+
+data_all %>%
+  summarise(
+    log_hamabot = log_transform(hamabot)
+  ) %>%
+  ggplot(aes(x=log_hamabot)) + geom_histogram(aes(y=stat(width*density)),binwidth = 0.35)+scale_y_continuous(labels = percent_format())
+```
