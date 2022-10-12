@@ -625,7 +625,7 @@ data_all %>%
 ### d)
 ```{r}
 names(data_all)
-cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj")
+cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj","hour","dayofweek")
 data_filtered = data_all |>
   select(all_of(cols_name)) |>
   data.frame()
@@ -637,7 +637,8 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 ```
 
 ## 4
-
+Through the k-means clustering of the Principal Components, it can be observed that while plotting the components that explain a high variability of the data, humidity and temperature appear in opposite directions, hence confirming their negative correlation with each other. \newline
+Also, when we consider the 3 clusters in the plot of PC1 against PC2, which cumulatively explain approx. $72\%$ of our data, we can observe that the darkest cluster (represented by 1.0) represents values that contain high values of height, incident PAR and reflected PAR and relatively high values of temperature, leading to lower values of relative humidity. The second cluster (represented by 2.0) -> Lower values of height with higher temperature, higher incident PAR, higher reflect PAR and lower humidity. Third cluster (represented by 3.0) -> lower values of height, higher humidity, lower temperature, lower incident and reflected PAR.
 ```{r k means PCA}
 #Try grouping and checking over the week
 comp = data.frame(pca_prcomp$x)
