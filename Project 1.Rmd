@@ -17,6 +17,7 @@ library(lubridate)
 library(ggcorrplot)
 library(RColorBrewer)
 library(scales)
+library(factoextra)
 data_net <- read.csv("data/sonoma-data-net.csv")
 data_log <- read.csv("data/sonoma-data-log.csv")
 ```
@@ -639,7 +640,7 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 
 ```{r k means PCA}
 #Try grouping and checking over the week
-comp = data.frame(pca_prcomp$x)
+comp = data.frame(pca_prcomp$x[,1:5])
 wss = function(k) {
   kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
 }
@@ -652,8 +653,16 @@ plot(k.values, wss_values,
        ylab="Total within-clusters sum of squares")
 # 3?
 kmeans_pca = kmeans(comp,3)
-palette(alpha(brewer.pal(9,'Set1'), 0.5))
-plot(comp, col=kmeans_pca$clust, pch=16)
+fviz_pca(pca_prcomp, axes = c(1, 2),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(1, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(2, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(3, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(3, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+fviz_pca(pca_prcomp, axes = c(4, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
 ```
 
 ```{r may-count}
