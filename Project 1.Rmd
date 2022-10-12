@@ -625,7 +625,7 @@ data_all %>%
 ### d)
 ```{r}
 names(data_all)
-cols_name = c("hamatop","hamabot","Height","hour","dayofweek","humid_temp","humid_adj")
+cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj")
 data_filtered = data_all |>
   select(all_of(cols_name)) |>
   data.frame()
@@ -640,12 +640,12 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 
 ```{r k means PCA}
 #Try grouping and checking over the week
-comp = data.frame(pca_prcomp$x[,1:5])
+comp = data.frame(pca_prcomp$x)
 wss = function(k) {
   kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
 }
 
-k.values <- 1:7
+k.values <- 1:5
 wss_values <- map_dbl(k.values, wss)
 plot(k.values, wss_values,
        type="b", pch = 19, frame = FALSE, 
