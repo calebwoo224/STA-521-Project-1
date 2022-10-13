@@ -4,12 +4,10 @@ author: "Sanskriti Purohit & Caleb Woo"
 date: "2022-10-13"
 output: pdf_document
 ---
-
-```{r chunk-options}
-knitr::opts_chunk$set(message = F, warning = F)
+```{r chunk-options, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
 ```
-
-```{r libraries-data}
+```{r libraries-data, include=FALSE}
 library(tidyverse)
 library(dplyr)
 library(chron)
@@ -22,51 +20,125 @@ library(gridExtra)
 library(factoextra)
 data_net <- read.csv("data/sonoma-data-net.csv")
 data_log <- read.csv("data/sonoma-data-log.csv")
+# find dates cleaning in "dates-cleaning.R"
 dates <- read_csv("data/dates.csv")
 dates <- dates %>%
   select(-c("...1"))
 ```
 
-## 2.
+## 2. Data cleaning
 
-### a)
+Voltage is our first inconsistent variable. We see that the network data voltage is in ADC units in the left plot while the log data voltage is in volts in the middle plot. Tolle et al. uses volts as the voltage unit, so we converted the network data voltage units from ADC to volts using the MICA2DOT user's manual found at this link: http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf.
 
-Voltage
+In section 6.5 of the user's manual, we see that we can convert ADC to volts by using the following formula:
+
+$$\text{Voltage} = 0.6*\frac{1024}{ADC}$$
+
+The histogram of the fixed network data voltage in volts is seen in the right plot.
 
 ```{r initial-voltage}
-data_net %>%
+net_initial_voltage <- data_net %>%
   ggplot(data=., aes(x=voltage)) +
   geom_histogram(binwidth=25) +
-  labs(title="Network ADC Histogram", x="ADC", y="Count")
+  labs(title="Network ADC", x="ADC", y="Count")
 
-data_log %>%
+log_initial_voltage <- data_log %>%
   ggplot(data=., aes(x=voltage)) +
   geom_histogram(binwidth=0.25) +
-  labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
-```
+  labs(title="Log Voltage", x="Volts", y="Count")
 
-Voltage is inconsistent, link below for ADC to voltage conversion
-
-  - http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf
-  
-  - page 23 (25 of pdf) has MICA2DOT conversion
-
-```{r fixed-voltage}
 data_net <- data_net %>%
   mutate(voltage = 0.6*(1024/voltage))
 
-data_net %>%
+net_fixed_voltage <- data_net %>%
   ggplot(data=., aes(x=voltage)) +
   geom_histogram(binwidth=0.25) +
-  labs(title="Network Voltage Histogram", x="Voltage", y="Count")
+  labs(title="Network Voltage", x="Volts", y="Count")
 
-data_log %>%
-  ggplot(data=., aes(x=voltage)) +
-  geom_histogram(binwidth=0.25) +
-  labs(title="Logs Voltage Histogram", x="Voltage", y="Count")
+grid.arrange(net_initial_voltage, log_initial_voltage, net_fixed_voltage, nrow=1)
 ```
 
-```{r humidity}
+Incident PAR is our second inconsistent variable. In the top two plots, we see that both network data incident PAR and log data incident PAR are represented as illuminance in lux units rather than as the photosyntehtic photon flux density (PPFD) in micromoles per second per meter squared units used in the paper. So we converted illuminance to PPFD using Apogee Instrument's conversion table found at this link: https://www.apogeeinstruments.com/conversion-ppfd-to-lux/.
+
+In the table on the right hand side, we see that we can convert illuminance in lux to PPFD in micromoles per second per meter squared for sunlight measurements by using the following formula:
+
+$$\text{PPFD} = 0.0185*\text{illuminance}$$
+
+The histograms of the fixed network and log incident PAR as PPFD in micromoles per second per meter squared is shown in the bottom two plots.
+
+```{r initial-hamatop}
+net_initial_hamatop <- data_net %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Incident PAR", x="Lux", y="Count")
+
+log_initial_hamatop <- data_log %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Incident PAR", x="Lux", y="Count")
+
+data_net <- data_net %>%
+  mutate(hamatop=0.0185*hamatop)
+
+data_log <- data_log %>%
+  mutate(hamatop=0.0185*hamatop)
+
+net_fixed_hamatop <- data_net %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+log_fixed_hamatop <- data_log %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(net_initial_hamatop, log_initial_hamatop, net_fixed_hamatop, log_fixed_hamatop, nrow=2, ncol=2)
+```
+
+Similarly for reflected PAR, both network data reflected PAR and log data reflected PAR are represented as illuminance in lux units rather than as the PPFD in micromoles per second per meter squared units used in the paper. So we converted reflected PAR just like how we converted incident PAR above. The top two plots below show the histograms of network and log reflected PAR in lux prior to the conversion. The bottom two plots show the histograms of network and log reflected PAR in micromoles per second per meter squared after the conversion.
+
+```{r initial-hamabot}
+net_initial_hamabot <- data_net %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Reflected PAR", x="Lux", y="Count")
+
+log_initial_hamabot <- data_log %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Reflected PAR", x="Lux", y="Count")
+
+data_net <- data_net %>%
+  mutate(hamabot=0.0185*hamabot)
+
+data_log <- data_log %>%
+  mutate(hamabot=0.0185*hamabot)
+
+net_fixed_hamabot <- data_net %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+log_fixed_hamabot <- data_log %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(net_initial_hamabot, log_initial_hamabot, net_fixed_hamabot, log_fixed_hamabot, nrow=2, ncol=2)
+```
+
+The other two relevant variables, humidity and temperature, appear to be consistent with each other and with the units used in the paper. Temperature is in degrees Celsius while humidity is in percent of relative humidity.
+```{r humidity, include=FALSE}
+# unused humidity and temperature histograms
 data_net %>%
   filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
   ggplot(data=., aes(x=humidity)) +
@@ -79,7 +151,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Humidity Histogram", x="Humidity", y="Count")
 ```
-```{r adj-humidity}
+```{r adj-humidity, include=FALSE}
 data_net %>%
   filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
   ggplot(data=., aes(x=humid_adj)) +
@@ -92,7 +164,7 @@ data_log %>%
   geom_histogram(bins=20) +
   labs(title="Logs Adjusted Humidity Histogram", x="Humidity", y="Count")
 ```
-```{r temperature}
+```{r temperature, include=FALSE}
 data_net %>%
   filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
   ggplot(data=., aes(x=humid_temp)) +
@@ -106,118 +178,12 @@ data_log %>%
   labs(title="Logs Temperature Histogram", x="Humidity", y="Count")
 ```
 
-Incident PAR
-show histograms before conversion
-don't filter yet
-
-```{r initial-hamatop}
-data_net %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamatop) %>%
-  pull() %>%
-  max()
-```
-
-Hamatop is inconsistent, link below for Lux to PPFD conversion
-
-  - https://www.apogeeinstruments.com/conversion-ppfd-to-lux/
-
-```{r fixed-hamatop}
-data_net <- data_net %>%
-  mutate(hamatop=0.0185*hamatop)
-
-data_log <- data_log %>%
-  mutate(hamatop=0.0185*hamatop)
-
-data_net %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4) %>%
-  ggplot(data=., aes(x=hamatop)) +
-  geom_histogram(bins=20) +
-  labs(title="Network Incident PAR Histogram", x="Incident PAR", y="Count")
-
-data_log %>%
-  filter(!is.na(hamatop) & voltage <= 3 & voltage >= 2.4  & hamatop < 2200) %>%
-  ggplot(data=., aes(x=hamatop)) +
-  geom_histogram(bins=20) +
-  labs(title="Logs Incident PAR Histogram", x="Incident PAR", y="Count")
-```
-
-Reflected PAR
-show histograms before conversion
-
-```{r initial-hamabot}
-data_net %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  min()
-
-data_log %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  min()
-
-data_net %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
-
-data_log %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  select(hamabot) %>%
-  pull() %>%
-  max()
-```
-
-Fix hamabot like hamatop
-
-```{r fixed-hamabot}
-data_net <- data_net %>%
-  mutate(hamabot=0.0185*hamabot)
-
-data_log <- data_log %>%
-  mutate(hamabot=0.0185*hamabot)
-
-data_net %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  ggplot(data=., aes(x=hamabot)) +
-  geom_histogram(bins=15) +
-  labs(title="Network Reflected PAR Histogram", x="Reflected PAR", y="Count")
-
-data_log %>%
-  filter(!is.na(hamabot) & voltage <= 3 & voltage >= 2.4) %>%
-  ggplot(data=., aes(x=hamabot)) +
-  geom_histogram(bins=15) +
-  labs(title="Logs Reflected PAR Histogram", x="Reflected PAR", y="Count")
-```
-
-### b)
+After we made all relevant variables in the network and log data consistent with each other and with the units used in the paper, we combined their data and also merged this combined data with the dates information found in "sonoma-dates". There are 8760 observations with missing measurements and these missing observations occur between April 30 at 8:05 AM and May 25 at 9:15 PM inclusive. We removed these 8760 missing observations.
 
 ```{r dates-merge}
 data_both <- merge(data_net, data_log, by = c("epoch", "nodeid"), all.y = T, suffixes = c(".net", ".log"))
 data_all <- merge(data_both, dates, by = "epoch", all.x = T)
 ```
-
 ```{r missing}
 missing_data <-  data_all %>%
   select(ends_with(".log"), epochDates, epochDays) %>%
@@ -225,14 +191,15 @@ missing_data <-  data_all %>%
   #filter(is.na(parent.log) | is.na(voltage.log) | is.na(depth.log) | is.na(humidity.log) | is.na(humid_temp.log) |
   #       is.na(humid_adj.log) | is.na(hamatop.log) | is.na(hamabot.log))
 
-paste0("# of missing measurements: ", nrow(missing_data))
+#paste0("# of missing measurements: ", nrow(missing_data))
 
 missing_data %>%
   select(epochDates) %>%
-  summarise(min = min(epochDates),
-            max = max(epochDates))
+  summarise(Start = min(epochDates),
+            End = max(epochDates)) %>%
+  kbl(caption = "8760 Missing Observations Time Period") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
 ```
-
 ```{r remove-missing}
 data_all <- data_all %>%
   filter(!is.na(parent.log) & !is.na(voltage.log) & !is.na(depth.log) & !is.na(humidity.log) & !is.na(humid_temp.log) &
@@ -240,146 +207,137 @@ data_all <- data_all %>%
 row.names(data_all) <- NULL
 ```
 
-### c)
-
-```{r locations}
+When we initially combined the network data and log data, we noticed that they essentially have identical columns except for voltage. This must be because network voltage data had to be converted from ADC to volts so the conversion may not be exact. Since network data is missing for some rows, log data is not missing for any rows, and log data has essentially identical values as network data (other than voltage but log data voltage is more accurate anyways), we removed network data columns from the combined data frame. In addition, the result_time column from the combined data and the epochDates column merged from the dates information found in "sonoma-dates" represent the same information. However, epochDates from "sonoma-dates" is more accurate so we also removed the result_time column from the combined and merged data. Finally, I merged the locations data found in "mote-location-data.txt" with the rest of the combined and merged data described above to get a total of 16 variables that includes network and log data, dates data, and locations data. After merging the locations data, we found that there are 6091 observations with missing values in the locations data so we removed these observations as well.
+```{r locations, include=FALSE}
+# find locations cleaning in "locations-cleaning.R"
 locations <- read_csv("data/locations.csv") %>%
   select(-c("...1"))
 ```
-
 ```{r locations-merge}
 data_all <- merge(data_all, locations, by = "nodeid", all.x = T)
 ```
-
-The network data and logs data have identical columns in this merged data frame except for voltage. This must be because network voltage data had to be converted from ADC so the conversion may not be exact. Since network data is missing for some rows, logs data is not missing for any rows, and logs data has identical values as network data (other than voltage but logs voltage is more accurate anyways), we can remove network data columns from the merged data frame. In addition, result_time and epochDates represent the same information with epochDates from sonoma-dates being more accurate, so I will also remove the result_time column from the logs data.
-
 ```{r remove-network-data}
 data_all <- data_all %>%
   select(-ends_with(".net"), -result_time.log)
 names(data_all)[3:11] <- str_replace(names(data_all)[3:11], ".log", "")
 ```
-
-There are 16 total variables in my complete merged data frame that includes network and logs data, dates data, and locations data.
-
 ```{r remove-missing-locations}
-data_all %>%
-  filter(is.na(Height) & is.na(Direc) & is.na(Dist) & is.na(Tree)) %>%
-  nrow()
+#data_all %>%
+#  filter(is.na(Height) & is.na(Direc) & is.na(Dist) & is.na(Tree)) %>%
+#  nrow()
 data_all <- data_all %>%
   filter(!is.na(Height) & !is.na(Direc) & !is.na(Dist) & !is.na(Tree))
 ```
 
-6091 missing location observations.
+Since Tolle et al. found a correlation between battery failure and outliers, we first utilized their automatic outlier rejection strategy to get rid of most outliers before investigating for further outliers. We removed all data with voltages greater than 3 volts and less than 2.4 volts as described by Tolle et al. This removed 26,011 observations from our data.
 
-### d)
-
-Quantiles before removal, quantiles and histograms after removal
-
-Since sensors with low batteries were not accurate, we removed all data with voltages greater than 3 and less than 2.4 like Tolle et al. This removed 26011 observations. Below are the quantiles and histograms of each variable after removing the voltages and before removing any other outliers.
+Below are the quantiles of humidity, adjusted humidity, temperature, incident PAR, and reflected PAR after removing outlier voltages. While the quantiles of humidity and adjusted humidity are very similar, the maximum value of adjusted humidity at 100.223 is closer to the maximum humidity value of 100.2 found in the paper so we will use adjusted humidity as our humidity measurement going forward. Below the quantiles are histograms of the four relevant variables. Comparing the quantiles of incident PAR with the quantiles of the paper and visually inspecting the incident PAR histogram revealed that there are some abnormally high values of incident PAR. Looking at the observations with an incident PAR higher than the maximum incident PAR of 2154 given in the paper, we found that node 40 is solely responsible for all of those readings. So we removed all observations recorded by node 40 to remove incident PAR outliers. Comparing the other quantiles with the quantiles in the paper and visually inspecting the other histograms do not reveal any further noticeable outliers in adjusted humidity, temperature, and reflected PAR.
 
 ```{r voltage-outliers}
-data_all %>%
-  filter(voltage > 3 | voltage < 2.4) %>%
-  nrow()
+#data_all %>%
+#  filter(voltage > 3 | voltage < 2.4) %>%
+#  nrow()
 data_all <- data_all %>%
   filter(voltage <= 3 & voltage >= 2.4)
 ```
+```{r quantiles-pre-removal}
+pre_humidity <- as.data.frame(quantile(data_all$humidity))
+names(pre_humidity)[1] <- "Humidity"
+pre_humid_adj <- as.data.frame(quantile(data_all$humid_adj))
+names(pre_humid_adj)[1] <- "Adjusted Humidity"
+pre_humid_temp <- as.data.frame(quantile(data_all$humid_temp))
+names(pre_humid_temp)[1] <- "Temperature"
+pre_hamatop <- as.data.frame(quantile(data_all$hamatop))
+names(pre_hamatop)[1] <- "Incident PAR"
+pre_hamabot <- as.data.frame(quantile(data_all$hamabot))
+names(pre_hamabot)[1] <- "Reflected PAR"
 
-```{r humid_adj-removal}
-quantile(data_all$humid_adj)
-
-data_all %>%
+cbind(pre_humidity, pre_humid_adj, pre_humid_temp, pre_hamatop, pre_hamabot) %>%
+  kbl(digits = 3, caption = "Quantiles After Removing Outlier Voltages") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+```{r histograms-pre-removal}
+pre_humid_adj_hist <- data_all %>%
   ggplot(., aes(x=humid_adj)) +
-  geom_histogram()
-```
+  geom_histogram(binwidth=5) +
+  labs(title="Adjusted Humidity", x="%RH", y="Count")
 
-The quantiles in humid_adj more closely matches that of Tolle et al. compared to the quantiles of humidity so we should use humid_adj in place of humidity. This allows us to remove 1 more variable so we have a total of 15 variables. There do not seem to be any other outliers in humid_adj.
+pre_humid_temp_hist <- data_all %>%
+  ggplot(., aes(x=humid_temp)) +
+  geom_histogram(binwidth=2) +
+  labs(title="Temperature", x="\u00b0C", y="Count")
 
-```{r hamatop-pre-removal}
-quantile(data_all$hamatop)
-
-data_all %>%
+pre_hamatop_hist <- data_all %>%
   ggplot(., aes(x=hamatop)) +
-  geom_histogram()
-```
+  geom_histogram(binwidth=100) +
+  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
 
-```{r high-hamatop-nodes}
-data_all %>%
-  filter(hamatop > 2154) %>%
-  select(nodeid) %>%
-  unique()
-```
-
-There seem to be some abnormally high values of incident PAR and when we look for the nodes that gave a reading higher than the max incident PAR reading of 2154 given in the paper, we see that node 40 is solely responsible for all those readings. So we will remove all observations with node 40. This removes 98 observations. 271,776 observations left.
-
-```{r hamabot-pre-removal}
-quantile(data_all$hamabot)
-
-data_all %>%
+pre_hamabot_hist <- data_all %>%
   ggplot(., aes(x=hamabot)) +
-  geom_histogram()
+  geom_histogram(binwidth=10) +
+  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(pre_humid_adj_hist, pre_humid_temp_hist, pre_hamatop_hist, pre_hamabot_hist, nrow=2, ncol=2)
 ```
-
-The quantiles of reflected PAR match up well with that of Tolle et al. so there does not seem to be any other outliers in reflected PAR.
-
-Below are the quantiles and histograms of each variable after removing both the voltages and observations with node 40. 
-
+```{r high-hamatop-nodes}
+#data_all %>%
+#  filter(hamatop > 2154) %>%
+#  select(nodeid) %>%
+#  unique()
+```
 ```{r remove-node-40}
-data_all %>%
-  filter(nodeid == 40) %>%
-  nrow()
+#data_all %>%
+#  filter(nodeid == 40) %>%
+#  nrow()
 data_all <- data_all %>%
   filter(nodeid != 40)
 ```
 
-```{r humid-adj-post-removal}
-quantile(data_all$humid_adj)
+Below are the quantiles and histograms of the relevant variables after removing outlier voltages and removing node 40. The quantiles match up well with the quantiles found in the paper and the histograms do not reveal any further noticeable outliers. Removing node 40 resulted in removing 98 observations recorded by node 40. Therefore, the final number of observations after all data cleaning is 271,776. Considering that log data contained 301,056 observations and network data contained 114,980 observations, our final cleaned data retains most of the information found in the log and network data.
 
-data_all %>%
+```{r quantiles-post-removal}
+post_humid_adj <- as.data.frame(quantile(data_all$humid_adj))
+names(post_humid_adj)[1] <- "Adjusted Humidity"
+post_humid_temp <- as.data.frame(quantile(data_all$humid_temp))
+names(post_humid_temp)[1] <- "Temperature"
+post_hamatop <- as.data.frame(quantile(data_all$hamatop))
+names(post_hamatop)[1] <- "Incident PAR"
+post_hamabot <- as.data.frame(quantile(data_all$hamabot))
+names(post_hamabot)[1] <- "Reflected PAR"
+
+cbind(post_humid_adj, post_humid_temp, post_hamatop, post_hamabot) %>%
+  kbl(digits = 3, caption = "Quantiles After Removing Node 40") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+```{r histograms-post-removal}
+post_humid_adj_hist <- data_all %>%
   ggplot(., aes(x=humid_adj)) +
-  geom_histogram()
-```
+  geom_histogram(binwidth=5) +
+  labs(title="Adjusted Humidity", x="%RH", y="Count")
 
-```{r temp-post-removal}
-quantile(data_all$humid_temp)
-
-data_all %>%
+post_humid_temp_hist <- data_all %>%
   ggplot(., aes(x=humid_temp)) +
-  geom_histogram()
-```
+  geom_histogram(binwidth=2) +
+  labs(title="Temperature", x="\u00b0C", y="Count")
 
-```{r hamatop-post-removal}
-quantile(data_all$hamatop)
-
-data_all %>%
+post_hamatop_hist <- data_all %>%
   ggplot(., aes(x=hamatop)) +
-  geom_histogram()
-```
+  geom_histogram(binwidth=100) +
+  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
 
-```{r hamabot-post-removal}
-quantile(data_all$hamabot)
-
-data_all %>%
+post_hamabot_hist <- data_all %>%
   ggplot(., aes(x=hamabot)) +
-  geom_histogram()
+  geom_histogram(binwidth=10) +
+  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(post_humid_adj_hist, post_humid_temp_hist, post_hamatop_hist, post_hamabot_hist, nrow=2, ncol=2)
 ```
-
-All quantiles and histograms of humidity, temperature, incident PAR, and reflected PAR match up well with the quantiles of Tolle et al. after removing observations with voltages greater than 3 and less than 2.4 and removing observations with node 40.
-
 ```{r write-csv-data-all}
-data_all %>%
-  filter_all(any_vars(is.na(.))) %>%
-  nrow()
+#data_all %>%
+#  filter_all(any_vars(is.na(.))) %>%
+#  nrow()
 
 #write.csv(data_all, "data/data-all-dates-locations.csv")
-```
-
-```{r}
-#Checking for further outliers
-data_all %>%
-  ggplot(., aes(x=voltage))+geom_boxplot()
-data_all %>%
-  ggplot(., aes(x=humid_temp))+geom_boxplot()
 ```
 
 ## 3.
