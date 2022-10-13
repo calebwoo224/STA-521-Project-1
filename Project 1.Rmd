@@ -26,7 +26,7 @@ dates <- dates %>%
   select(-c("...1"))
 ```
 
-## 2. Data cleaning
+## 2. Data Cleaning
 
 Voltage is our first inconsistent variable. We see that the network data voltage is in ADC units in the left plot while the log data voltage is in volts in the middle plot. Tolle et al. uses volts as the voltage unit, so we converted the network data voltage units from ADC to volts using the MICA2DOT user's manual found at this link: http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf.
 
@@ -340,7 +340,7 @@ grid.arrange(post_humid_adj_hist, post_humid_temp_hist, post_hamatop_hist, post_
 #write.csv(data_all, "data/data-all-dates-locations.csv")
 ```
 
-## 3.
+## 3. Data Exploration
 
 ### a)
 ```{r}
@@ -479,7 +479,7 @@ plot(1:length(eigenvalues), eigenvalues/sum(eigenvalues), type = "l")
 points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 ```
 
-## 4
+## 4. Interesting Findings
 Through the k-means clustering of the Principal Components, it can be observed that while plotting the components that explain a high variability of the data, humidity and temperature appear in opposite directions, hence confirming their negative correlation with each other. \newline
 Also, when we consider the 3 clusters in the plot of PC1 against PC2, which cumulatively explain approx. $72\%$ of our data, we can observe that the darkest cluster (represented by 1.0) represents values that contain high values of height, incident PAR and reflected PAR and relatively high values of temperature, leading to lower values of relative humidity. The second cluster (represented by 2.0) -> Lower values of height with higher temperature, higher incident PAR, higher reflect PAR and lower humidity. Third cluster (represented by 3.0) -> lower values of height, higher humidity, lower temperature, lower incident and reflected PAR.
 ```{r k means PCA}
@@ -669,28 +669,28 @@ c_35_2 <- clusters_real_data %>%
 grid.arrange(c_35_1, c_35_2, nrow=1)
 ```
 
-## 5
+## 5. Graph Critique in the paper
 
-### a)
-
-get rid of 0s and say why
+The main difficulty in reading the full information from the long tails of the incident and reflected PAR histograms in figure 3[a] is that there are so many 0 values compared to the other values of incident and reflected PAR. This makes the first bin in each histogram extremely tall while all remaining bins at greater PAR values are extremely short in comparison. The long tails combined with the short heights of the incident and reflected PAR histograms makes reading the full information from the histograms extremely difficult. We believe that it would be best to plot all values other than the 0 values on the log scale to be able to more clearly differentiate the different values of incident and reflected PAR. About 55.8% of incident PAR values are 0 and about 84.9% of reflected PAR values are 0. The percentages on the y axes below represent the relative percentages of all non-zero PAR values plotted. So the incident PAR histogram represents percentages of the remaining 44.2% of values that are non-zero. The reflected PAR histogram represents percentages of the remaining 15.1% of values that are non-zero.
 
 ```{r 5a}
+#data_all %>%
+#  filter(hamatop == 0) %>%
+#  nrow()
+
+#data_all %>%
+#  filter(hamabot == 0) %>%
+#  nrow()
+
 i_par_plot <- data_all %>%
-  mutate(hamatop = case_when(
-    hamatop == 0 ~ 1,
-    T ~ hamatop
-  )) %>%
+  filter(hamatop != 0) %>%
   ggplot(., aes(x=log(hamatop))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
   scale_y_continuous(labels = scales::percent) +
   labs(title="Incident PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
 
 r_par_plot <- data_all %>%
-  mutate(hamabot = case_when(
-    hamabot == 0 ~ 1,
-    T ~ hamabot
-  )) %>%
+  filter(hamabot != 0) %>%
   ggplot(., aes(x=log(hamabot))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
   scale_y_continuous(labels = scales::percent) +
@@ -699,7 +699,7 @@ r_par_plot <- data_all %>%
 grid.arrange(i_par_plot, r_par_plot, nrow=1)
 ```
 
-### b)
+The box plots in figure 3[c] and 3[d] represent distributions and mean centered distributions respectively of temperature, humidity, incident PAR, and reflected PAR at varying levels of height. The box plots try to convey the differences across height of the four variables. However, we think that comparing the median and quartiles vertically and the visualization of the whiskers make it difficult to truly compare the differences of the distributions and mean centered distributions across height of the four variables. Using figure 4 as inspiration, we decided to plot height horizontally on the x axis, the four variables vertically on the y axis, and only the median, upper quartile, and lower quartile of the box plots to more clearly visualize the differences across height.
 
 ```{r 5b-1}
 p_3c_1 <- data_all %>%
@@ -768,7 +768,6 @@ p_3c_4 <- data_all %>%
 
 grid.arrange(p_3c_1, p_3c_2, p_3c_3, p_3c_4, nrow=2, ncol=2)
 ```
-
 ```{r 5b-2}
 p_3d_1 <- data_all %>%
   mutate(humid_temp = humid_temp - mean(humid_temp)) %>%
@@ -841,168 +840,227 @@ p_3d_4 <- data_all %>%
 grid.arrange(p_3d_1, p_3d_2, p_3d_3, p_3d_4, nrow=2, ncol=2)
 ```
 
-### c)
-
-add height to legend labels
+The first two plots in figure 4 are not very effective because it is so difficult to distinguish any of the individual sensor readings across time since all sensor readings are overlayed on top of each other. It is very difficult to distinguish any one color so it is very difficult to distinguish any particular sensor in these two plots. We thought it would be more effective to plot just a few individual sensors to more clearly distinguish between sensors across time on May 1, 2004. In order to do so, for each plot we found and plotted the node with the highest average value, the node with the lowest average value, and the node with approximately the middle most average value. By doing this, the three nodes across time are fairly well separated so it is much easier to distinguish between the different line colors and thus distinguish between the different nodes.
 
 ```{r 5c-1}
 library(lubridate)
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Temperature` = mean(humid_temp)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Temperature`) %>%
-  arrange(., desc(`Mean Temperature`)) %>%
-  slice(1:3)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., desc(`Mean Temperature`)) %>%
+#  slice(1:3)
 
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Temperature` = mean(humid_temp)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Temperature`) %>%
-  arrange(., `Mean Temperature`) %>%
-  slice(1:3)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., `Mean Temperature`) %>%
+#  slice(1:3)
 
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Temperature` = mean(humid_temp)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Temperature`) %>%
-  arrange(., `Mean Temperature`) %>%
-  slice(26:28)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., `Mean Temperature`) %>%
+#  slice(26:28)
 
-data_all %>%
+#locations %>%
+#  filter(nodeid == 118 | nodeid == 20 | nodeid == 11) %>%
+#  select(nodeid, Height)
+
+p_5c_1 <- data_all %>%
   filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 118 | nodeid == 20 | nodeid == 11)) %>%
   mutate(nodeid = factor(nodeid),
          Time = format(epochDates, "%H:%M")) %>%
   ggplot(., aes(x=Time)) +
   geom_point(aes(y=humid_temp, color=nodeid)) +
   geom_line(aes(y=humid_temp, group=nodeid, color=nodeid)) +
+  scale_color_discrete(labels = c("11 (49.4 m)", "20 (12.7 m)", "118 (63.5 m)")) +
   scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
   labs(title="May 1 Temperature vs Time", y="Temperature (\u00b0C)", color="Node id")
-```
 
-```{r 5c-2}
-library(lubridate)
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Humidity` = mean(humid_adj)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Humidity`) %>%
-  arrange(., desc(`Mean Humidity`)) %>%
-  slice(1:3)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., desc(`Mean Humidity`)) %>%
+#  slice(1:3)
 
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Humidity` = mean(humid_adj)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Humidity`) %>%
-  arrange(., `Mean Humidity`) %>%
-  slice(1:3)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., `Mean Humidity`) %>%
+#  slice(1:3)
 
-data_all %>%
-  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
-  group_by(nodeid) %>%
-  mutate(`Mean Humidity` = mean(humid_adj)) %>%
-  ungroup() %>%
-  distinct(nodeid, `Mean Humidity`) %>%
-  arrange(., `Mean Humidity`) %>%
-  slice(26:28)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., `Mean Humidity`) %>%
+#  slice(26:28)
 
-data_all %>%
+#locations %>%
+#  filter(nodeid == 20 | nodeid == 17 | nodeid == 115) %>%
+#  select(nodeid, Height)
+
+p_5c_2 <- data_all %>%
   filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 20 | nodeid == 17 | nodeid == 115)) %>%
   mutate(nodeid = factor(nodeid),
          Time = format(epochDates, "%H:%M")) %>%
   ggplot(., aes(x=Time)) +
   geom_point(aes(y=humid_adj, color=nodeid)) +
   geom_line(aes(y=humid_adj, group=nodeid, color=nodeid)) +
+  scale_color_discrete(labels = c("17 (56.5 m)", "20 (12.7 m)", "115 (41.8 m)")) +
   scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
   labs(title="May 1 Relative Humidity vs Time", y="%RH", color="Node id")
+
+grid.arrange(p_5c_1, p_5c_2, nrow=2, ncol=1)
 ```
 
-### d)
+Although figure 7 clearly displays the different yields between the network and log data, it is difficult to directly compare them because the network and log data are plotted separately. We thought it would be easier to highlight the difference between network and log data by combining these plots and differentiating the network and log data by color. We found this to be most helpful for the second plot which is the plot of yield percentage over each day connected by a line. The two different colors representing network and log data in this combined second plot clearly show the difference in the change in yield percentage over the days between network and log data. The combined third plot, which is the plot of yield percentage over height, is more effective than when plotted separately because it now shows a clear difference in the yield percentage at each height between the network and log data. The combined fourth plot, which is the plot of the presence of any yield at each combination of day and height, is more effective than when plotted separately because the transparency of the points and the resulting shading of non-overlapping or overlapping points allow us to see where yield is present for network data, log data, or both at each combination of day and height.
 
-114980 network observations
+One additional concern is that it is unclear whether the original first plot in figure 7 represents the day yield or the node yield. Yield can be calculated for each day by summing and dividing by the total number of nodes. Yield can be calculated for each node by summing and dividing by the total number of days. The original first plot does not make this clear so we also thought it would be more effective to plot both day yield and node yield to highlight the difference in the two yields as well. Similar to the other three plots, we plot the day yield and the node yield with the combined network and log data and make each bar a proportion. This allows us to more directly compare the difference in yield percentages between network and log data for both day yield and node yield.
 
-putting net and log on same graphs for 1,2,3
-
-```{r 5d-net-merges}
+```{r 5d}
 data_net <- merge(data_net, dates, by = "epoch", all.x = T, suffixes = c(".net", ".dates"))
 data_net <- merge(data_net, locations, by = "nodeid", all.x = T, suffixes = c(".net", ".locations"))
-```
+data_log <- merge(data_log, dates, by = "epoch", all.x = T, suffixes = c(".log", ".dates"))
+data_log <- merge(data_log, locations, by = "nodeid", all.x = T, suffixes = c(".log", ".locations"))
 
-```{r 5d-net-yields-dates}
 net_dates_yield <- c()
-dates_range <- c()
-nodes_per <- c()
+log_dates_yield <- c()
+dates_range_net <- c()
+dates_range_log <- c()
+nodes_net <- c()
+nodes_log <- c()
 for (date in as.list(unique(as.Date(dates$epochDates)))) {
-  date_yield <- data_net %>%
+  date_yield_n <- data_net %>%
     filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
     distinct(nodeid) %>%
     nrow()
-  net_dates_yield <- c(net_dates_yield, date_yield/nrow(locations))
+  net_dates_yield <- c(net_dates_yield, date_yield_n/nrow(locations))
   
-  date_nodes <- data_net %>%
+  date_yield_l <- data_log %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    nrow()
+  log_dates_yield <- c(log_dates_yield, date_yield_l/nrow(locations))
+  
+  date_nodes_net <- data_net %>%
     filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
     distinct(nodeid) %>%
     pull()
-  d <- rep(date, length(date_nodes))
-  dates_range <- c(dates_range, d)
-  nodes_per <- c(nodes_per, date_nodes)
+  dn <- rep(date, length(date_nodes_net))
+  dates_range_net <- c(dates_range_net, dn)
+  nodes_net <- c(nodes_net, date_nodes_net)
+  
+  date_nodes_log <- data_log %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    pull()
+  dl <- rep(date, length(date_nodes_log))
+  dates_range_log <- c(dates_range_log, dl)
+  nodes_log <- c(nodes_log, date_nodes_log)
 }
 
-yields_dates <- dates %>%
+yields_dates_net <- dates %>%
   distinct(as.Date(epochDates)) %>%
   cbind(., net_dates_yield)
-names(yields_dates) <- c("Day", "Yield")
+yields_dates_net <- cbind(yields_dates_net, rep("Network", nrow(yields_dates_net)))
+names(yields_dates_net) <- c("Day", "Yield", "Data")
 
-yields_dates %>%
-  ggplot(., aes(x=100*Yield)) +
-  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
-  labs(title="Per Day Yields", x="Yield %", y="% of Days")
+yields_dates_log <- dates %>%
+  distinct(as.Date(epochDates)) %>%
+  cbind(., log_dates_yield)
+yields_dates_log <- cbind(yields_dates_log, rep("Log", nrow(yields_dates_log)))
+names(yields_dates_log) <- c("Day", "Yield", "Data")
 
-yields_dates %>%
-  ggplot(., aes(x=Day, y=100*Yield)) +
+yields_dates <- rbind(yields_dates_net, yields_dates_log)
+
+p_5d_1 <- yields_dates %>%
+  ggplot(., aes(x=100*Yield, fill=Data)) +
+  geom_bar(position = "fill") +
+  labs(title="Day Yields", x="Yield %", y="Proportion of Days")
+
+p_5d_3 <- yields_dates %>%
+  ggplot(., aes(x=Day, y=100*Yield, color=Data)) +
   geom_point() +
   geom_line() +
-  labs(title="Per Day Yields", y="Yield %")
+  labs(title="Day Yields", y="Yield %")
 
-data.frame(cbind(dates_range, nodes_per)) %>%
-  merge(., locations, by.x="nodes_per", by.y="nodeid", all.x=T) %>%
+net_dates_height <- data.frame(cbind(dates_range_net, nodes_net)) %>%
+  merge(., locations, by.x="nodes_net", by.y="nodeid", all.x=T)
+net_dates_height <- cbind(net_dates_height, rep("Network", nrow(net_dates_height)))
+names(net_dates_height) <- c("nodeid", "date", "Height", "Direc", "Dist", "Tree", "Data")
+
+log_dates_height <- data.frame(cbind(dates_range_log, nodes_log)) %>%
+  merge(., locations, by.x="nodes_log", by.y="nodeid", all.x=T)
+log_dates_height <- cbind(log_dates_height, rep("Log", nrow(log_dates_height)))
+names(log_dates_height) <- c("nodeid", "date", "Height", "Direc", "Dist", "Tree", "Data")
+
+p_5d_5 <- rbind(net_dates_height, log_dates_height) %>%
   mutate(Height = as.numeric(Height),
-         dates_range = as.Date(dates_range, origin="1970-01-01")) %>%
-  ggplot(., aes(x=dates_range, y=Height)) +
-  geom_point()
-```
+         date = as.Date(date, origin="1970-01-01")) %>%
+  filter(!is.na(Height)) %>%
+  ggplot(., aes(x=date, y=Height, color=Data)) +
+  geom_point(alpha=0.5) +
+  labs(title="Height vs Day Yields", x="Day")
 
-```{r 5d-net-yields-2}
 net_nodes_yield <- c()
+log_nodes_yield <- c()
 for (node_id in locations$nodeid) {
-  node_yield <- data_net %>%
+  node_yield_n <- data_net %>%
     filter(nodeid == node_id & !is.na(voltage)) %>%
     distinct(as.Date(epochDates)) %>%
     nrow()
-  net_nodes_yield <- c(net_nodes_yield, node_yield/length(unique(as.Date(dates$epochDates))))
+  net_nodes_yield <- c(net_nodes_yield, node_yield_n/length(unique(as.Date(dates$epochDates))))
+  
+  node_yield_l <- data_log %>%
+    filter(nodeid == node_id & !is.na(voltage)) %>%
+    distinct(as.Date(epochDates)) %>%
+    nrow()
+  log_nodes_yield <- c(log_nodes_yield, node_yield_l/length(unique(as.Date(dates$epochDates))))
 }
 
-yields_nodes <- locations %>%
+yields_nodes_net <- locations %>%
   mutate(Height = as.numeric(Height)) %>%
   distinct(nodeid, Height) %>%
   cbind(., net_nodes_yield)
-names(yields_nodes) <- c("Node ID", "Height", "Yield")
+yields_nodes_net <- cbind(yields_nodes_net, rep("Network", nrow(yields_nodes_net)))
+names(yields_nodes_net) <- c("Node ID", "Height", "Yield", "Data")
 
-yields_nodes %>%
-  ggplot(., aes(x=100*Yield)) +
-  geom_bar(aes(y = 100*(..count..)/sum(..count..))) +
-  labs(title="Per Node Yields", x="Yield %", y="% of Nodes")
+yields_nodes_log <- locations %>%
+  mutate(Height = as.numeric(Height)) %>%
+  distinct(nodeid, Height) %>%
+  cbind(., log_nodes_yield)
+yields_nodes_log <- cbind(yields_nodes_log, rep("Log", nrow(yields_nodes_log)))
+names(yields_nodes_log) <- c("Node ID", "Height", "Yield", "Data")
 
-yields_nodes %>%
-  ggplot(., aes(x=100*Yield, y=Height)) +
-  geom_point() +
-  labs(title="Per Node Yields", x="Yield %", y="Node Height (m)")
+yields_nodes <- rbind(yields_nodes_net, yields_nodes_log)
+
+p_5d_2 <- yields_nodes %>%
+  ggplot(., aes(x=100*Yield, fill=Data)) +
+  geom_bar(position="fill") +
+  labs(title="Node Yields", x="Yield %", y="Proportion of Nodes")
+
+p_5d_4 <- yields_nodes %>%
+  ggplot(., aes(x=100*Yield, y=Height, color=Data)) +
+  geom_point(alpha=0.5) +
+  labs(title="Node Yields", x="Yield %", y="Node Height (m)")
+
+grid.arrange(p_5d_1, p_5d_2, p_5d_3, p_5d_4, p_5d_5, nrow=3, ncol=2)
 ```
