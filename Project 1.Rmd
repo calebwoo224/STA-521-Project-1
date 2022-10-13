@@ -25,21 +25,21 @@ dates <- read_csv("data/dates.csv")
 dates <- dates %>%
   select(-c("...1"))
 ```
-## 1\newline
-### 1.1 Summary of the Paper \newline
-The paper, "A Macroscope in the Redwoods" highlights the potential of the wireless sensor network macroscope in the field of science, particularly its use in observing and monitoring instances that vary over time and space. It also provides a way to analyse the complex data obtained through these sensors and draws a few conclusions about the dynamics of the microclimate around a coastal redwood tree. Therefore, establishing and achieving its motivation of devising a base model for future researches to observe what they weren't able to measure at the time. The redwood tree, proven to have a substantial variation in its microclimate over both space and time, was thus chosen to be the center of this research.  \newline
-During the time frame of a month, the collected data, measurements of temperature, humidity, incident PAR and reflected PAR, was transferred over a network and also logged through a distributed data logger  contained in the suite of sensors placed on the redwood tree, such that each sensor maintained a certain minimum and maximum distance from the ground level, the trunk and other sensors. \newline
-By projecting the sensor values onto time and then onto space, the researchers discovered a much higher variation over time than in space which informed them to remove temporal variation and focus on spatial variation.The researchers determined that PAR and temperature correlate with solar movement, although reflected PAR is more noisy because the absolute readings are lower.Humidity, on the other hand, was shown to change considerably over a wide range prior to sunrise and after sunrise spatial variability remains high suggesting that the foliage of the tree has a significant effect on humidity across different heights of the tree. \newline
-Thus, multi-dimensional analysis of the data paints a detailed picture of the spatiotemporal variance, previously validated by biologists. Further, it shines light on the shortcomings of the existing wireless sensor networks. \newline
-### 1.2 Summary of Data Collection \newline
-The data for the study was collected over a duration of approximately 44 days (Tuesday, April 27, 2004 at 5:10pm to Thursday, June 10, 2004 at 2:00pm), where each sensor was sampled every 5 minutes. The sensors were deployed on the west side of the tree, at least 15m above the ground level, reaching a maximum distance of 70m while maintaining a 0.1-1 meter distance from the tree trunk. This was to ensure the capture of the variation caused by the foliage. There was also a 2 meter distance between each node, which proved to have a significant impact on the results obtained. \newline
+\section{1. Summaries}
+\subsection{1.1 Paper}
+The paper, "A Macroscope in the Redwoods" highlights the potential of the wireless sensor network macroscope in the field of science, particularly its use in observing and monitoring instances that vary over time and space. It also provides a way to analyse the complex data obtained through these sensors and draws a few conclusions about the dynamics of the microclimate around a coastal redwood tree. Therefore, establishing and achieving its motivation of devising a base model for future researches to observe what they weren't able to measure at the time. The redwood tree, proven to have a substantial variation in its microclimate over both space and time, was thus chosen to be the center of this research.  \newline \newline
+During the time frame of a month, the collected data, measurements of temperature, humidity, incident PAR and reflected PAR, was transferred over a network and also logged through a distributed data logger  contained in the suite of sensors placed on the redwood tree, such that each sensor maintained a certain minimum and maximum distance from the ground level, the trunk and other sensors. \newline \newline
+By projecting the sensor values onto time and then onto space, the researchers discovered a much higher variation over time than in space which informed them to remove temporal variation and focus on spatial variation.The researchers determined that PAR and temperature correlate with solar movement, although reflected PAR is more noisy because the absolute readings are lower.Humidity, on the other hand, was shown to change considerably over a wide range prior to sunrise and after sunrise spatial variability remains high suggesting that the foliage of the tree has a significant effect on humidity across different heights of the tree. \newline \newline
+Thus, multi-dimensional analysis of the data paints a detailed picture of the spatiotemporal variance, previously validated by biologists. Further, it shines light on the shortcomings of the existing wireless sensor networks. \newline \newline
+\subsection{1.2 Data Collection}
+The data for the study was collected over a duration of approximately 44 days (Tuesday, April 27, 2004 at 5:10pm to Thursday, June 10, 2004 at 2:00pm), where each sensor was sampled every 5 minutes. The sensors were deployed on the west side of the tree, at least 15m above the ground level, reaching a maximum distance of 70m while maintaining a 0.1-1 meter distance from the tree trunk. This was to ensure the capture of the variation caused by the foliage. There was also a 2 meter distance between each node, which proved to have a significant impact on the results obtained. \newline \newline
 The package was designed to ensure protection of the components of the node from various natural phenomenon such as rain, dirt, wind e.t.c. while enabling them to have the required sensitivity to measure the variables of interest.
 The researchers utilized the TinyDB data collection framework to collect the data into table format and represent each sensor as a column and each row as a reading taken at a particular time with additional columns for node ID, sample number, and sample reception time. Further the hardware and the software was calibrated twice to ensure optimum collection of the measurements of temperature, humidity, incident PAR and reflected PAR. Roof calibration was used on the PAR sensors to ensure that they were producing acceptable readings relative to a high-quality-well-established PAR sensor.
 Two-point calibration for each humidity and temperature sensor was performed by placing sensors in a controllable weather chamber and cycling through various temperatures and humidity levels.
-While calibration improved the mean temperature deviation from 0.35 degrees Celsius to 0.18 degrees Celsius and the mean humidity deviation from $1.24\%$ relative humidity to $0.60\%$ relative humidity, the absolute increase in accuracy was small enough to be of minimal benefit.\newline
+While calibration improved the mean temperature deviation from 0.35 degrees Celsius to 0.18 degrees Celsius and the mean humidity deviation from $1.24\%$ relative humidity to $0.60\%$ relative humidity, the absolute increase in accuracy was small enough to be of minimal benefit.\newline \newline
 The data was collected in two ways, through the transfer of the data to the gateway over a network and logging of the data at the site by the data logger installed in each node. \textbf{sonoma-data-log.csv} contains the data obtained from the logger while \textbf{sonoma-data-net.csv} contains that transferred over the network.
 
-## 2. Data Cleaning
+\section{ 2. Data Cleaning}
 
 Voltage is our first inconsistent variable. We see that the network data voltage is in ADC units in the left plot while the log data voltage is in volts in the middle plot. Tolle et al. uses volts as the voltage unit, so we converted the network data voltage units from ADC to volts using the MICA2DOT user's manual found at this link: http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf.
 
@@ -353,132 +353,116 @@ grid.arrange(post_humid_adj_hist, post_humid_temp_hist, post_hamatop_hist, post_
 #write.csv(data_all, "data/data-all-dates-locations.csv")
 ```
 
-## 3. Data Exploration
+\section{ 3. Data Exploration}
 
-### a)
+\section{3 Data Exploration}
+
+In order to gain insights into the data, data points between 27th April and 27th May were chosen as they constitute more than $90\%$ of our information. Through the scatterplots of the corresponding data, we were able to gain some knowledge regarding the correlation between the variables and their behavior in the presence/absence of sunlight. A strong negative correlation between humidity and temperature can be observed through the scatterplot, which is also verified by obtaining a significant correlation coefficient of -0.827. Coloring the graph with the presence/absence of sunlight also confirms our belief of the existence of higher relative humidity and lower temperatures in the dark and an opposite behavior in the presence of sunlight. \newline
+By plotting the incident and reflected ray against each other, and coloring by height, we can observe the presence of higher readings in both at higher heights, suggesting that the level of absorption of sunlight is more or less uniform throughout the height of the tree. This can also be confirmed from the relatively strong positive correlation, 0.51, obtained from the test. \newline
+A positive correlation between height and incident ray, though not much visible through the figure, can also be concluded through the coefficient test. We can also observe a resultant positive correlation between height and temperature, perhaps due to presence of more sunlight in higher heights. \newline
+A strong positive correlation of 0.91 between voltage and temperature suggests a drop in voltage with the drop in temperature, which could further suggest that some readings below 2.4V and above 3V could be due to actual drop or rise in temperature and not due to node failure. 
 ```{r}
 data_all = read.csv("data/data-all-dates-locations.csv")
-data_all %>%
-  select(epochDates) %>%
-  summarise(
-    min = min(epochDates),
-    max = max(epochDates)
-  )
+#data_all %>%
+  #select(epochDates) %>%
+  #summarise(
+    #min = min(epochDates),
+    #max = max(epochDates)
+  #)
 
 data_all$Date = as.Date(data_all$epochDates)
 data_all$time = format(as.POSIXct(data_all$epochDates), format = "%H:%M")
 data_all$dayofweek = wday(data_all$epochDates)
 data_all$hour = format(as.POSIXct(data_all$epochDates), format = "%H")
 data_all$hour = as.numeric(data_all$hour)
-# data_all$Height = as.numeric(data_all$Height) #Check this
 #Reason for choosing the hours for Dark and Light
-data_all %>% 
-  ggplot(aes(x=hour,y=hamatop)) + geom_point()
+#data_all %>% 
+  #ggplot(aes(x=hour,y=hamatop)) + geom_point()
 data_all$Sunlight = case_when(
   as.numeric(data_all$hour) <= 5 | as.numeric(data_all$hour) >= 20  ~ "Dark",
   as.numeric(data_all$hour) < 20 ~ "Light"
 )
-count(data_all,Sunlight)
+#count(data_all,Sunlight)
 
-date_count = data_all %>% 
-  count(Date)
+#date_count = data_all %>% 
+  #count(Date)
 date_count$n = date_count$n*100/sum(date_count$n)
 p=0
 for(i in 1:length(date_count$n)){
   p = p + date_count$n[i]
   date_count$n[i] = p
 }
-date_count$n
+#date_count$n
 data_all = data_all %>%
-  filter(Date > '2004-04-27' & Date < '2004-05-27')
-data_all %>%
-  select(epochDates) %>%
-  summarise(
-    min = min(epochDates),
-    max = max(epochDates)
-  )
-count(data_all,Sunlight)
+  filter(Date < '2004-05-27')
+#data_all %>%
+  #select(epochDates) %>%
+  #summarise(
+    #min = min(epochDates),
+   # max = max(epochDates)
+  #)
+#count(data_all,Sunlight)
 
-#Add more?
 data_all %>% 
-  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point(alpha=0.05)
+  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point(alpha=0.05) + xlab("Temperature") + ylab("Adjusted Relative Humidity")
 data_all %>%
-  ggplot(aes(x=hour,y=hamatop)) + geom_point()
+  ggplot(aes(x=hamatop,y=hamabot,col=Height)) + geom_point() + xlab("Incident Ray") + ylab("Reflected Ray")
 data_all %>%
-  ggplot(aes(x=humid_temp,y=hamatop)) + geom_point()
-data_all %>%
-  ggplot(aes(x=humid_adj,y=hamatop)) + geom_point()
+  ggplot(aes(x=hamatop,y=Height)) + geom_point() + xlab("Incident Ray") + ylab("Height")
 data_all %>% 
-  ggplot(aes(x=humid_adj,y=hamabot, col = Sunlight)) + geom_point(alpha=0.05)
-data_all %>% 
-  ggplot(aes(x=humid_temp,y=hamabot, col=Sunlight)) + geom_point(alpha=0.05)
-#Abnormal values of reflected ray at odd hours at higher levels of heights.
-data_all %>% 
-  ggplot(aes(x=hour,y=hamabot)) + geom_point()
+  ggplot(aes(x=voltage, y=humid_temp)) + geom_point() + xlab("Voltage") + ylab("Temperature")
 ```
-## 3
-### b)
 ```{r}
-corr=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman"))
+numeric_data = c("Dist","dayofweek","Height","hamabot","hamatop","humid_adj","humid_temp","depth","voltage")
+data_all_fil = data_all |>
+  select(all_of(numeric_data)) |>
+  data.frame()
+corr=cor(data_all_fil, method=c("pearson","kendall","spearman"))
 ggcorrplot(corr,method="square")
 ```
-
-### c)
+A temporal view, with coloring by space, also assisted in deriving further insights and confirming our previous suggestions. At first, we took a broader look at the relationship between the values, time and height by taking the average of each value for each day for each height. Through these temporal graphs, we can strengthen our belief of the previously established correlation between the values and height. We also observed that the days that saw a drop in incident ray also saw a drop in temperature and a rise in humidity, suggesting a cloudy/rainy day. \newline \newline
+To delve deeper into the data, we took a look at one of the dates, May 7th, corresponding to a drop in the average incident ray. We took the average of the values by hour and colored them by height. It can be observed that the entirety of the tree had high values of RH, resulting in lower temperatures, especially in the early morning and late hours of night. The average amount of incident ray and reflected ray are also much lower than those observed on other days. Therefore confirming that May 7th was a day with cloudy day with spells of rainfall.
 ```{r}
 data_all %>%
   group_by(Date,Height)%>%
   summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
-  ggplot(aes(x=Date,y=avg_hamatop,col=Height,group=Height))+ geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
+  ggplot(aes(x=Date,y=avg_hamatop,col=Height,group=Height))+ geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d") + xlab("Date") + ylab("Incident Ray")
 data_all %>%
   group_by(Date,Height)%>%
   summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
-  ggplot(aes(x=Date,y=avg_hamabot,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
+  ggplot(aes(x=Date,y=avg_hamabot,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d") + xlab("Date") + ylab("Reflected Ray")
 data_all %>%
   group_by(Date,Height)%>%
   summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
-  ggplot(aes(x=Date,y=avg_humid,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
+  ggplot(aes(x=Date,y=avg_humid,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d") + xlab("Date") + ylab("Relative Humidity")
 data_all %>%
   group_by(Date,Height)%>%
   summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
-  ggplot(aes(x=Date,y=avg_temp,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d")
+  ggplot(aes(x=Date,y=avg_temp,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="4 days",date_labels = "%B %d") + xlab("Date") + ylab("Temperature")
 
 
 data_all %>%
-  group_by(dayofweek,Height)%>%
-  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
-  ggplot(aes(x=dayofweek,y=avg_hamatop,col=Height,group=Height))+ geom_line()
-data_all %>%
-  group_by(dayofweek,Height)%>%
-  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
-  ggplot(aes(x=dayofweek,y=avg_hamabot,col=Height,group=Height)) + geom_line()
-data_all %>%
-  group_by(dayofweek,Height)%>%
-  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
-  ggplot(aes(x=dayofweek,y=avg_humid,col=Height,group=Height)) + geom_line()
-data_all %>%
-  group_by(dayofweek,Height)%>%
-  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
-  ggplot(aes(x=dayofweek,y=avg_temp,col=Height,group=Height)) + geom_line()
-
-
-data_all %>%
+  filter(Date=="2004-05-07")%>%
   group_by(hour,Height)%>%
   summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
-  ggplot(aes(x=hour,y=avg_hamatop,col=Height,group=Height))+ geom_line()
+  ggplot(aes(x=hour,y=avg_hamatop,col=Height,group=Height))+ geom_line()  + xlab("Hour") + ylab("Incident Ray") 
 data_all %>%
+  filter(Date=="2004-05-07")%>%
   group_by(hour,Height)%>%
   summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
-  ggplot(aes(x=hour,y=avg_hamabot,col=Height,group=Height)) + geom_line()
+  ggplot(aes(x=hour,y=avg_hamabot,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Reflected Ray") 
 data_all %>%
+  filter(Date=="2004-05-07")%>%
   group_by(hour,Height)%>%
   summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
-  ggplot(aes(x=hour,y=avg_humid,col=Height,group=Height)) + geom_line()
+  ggplot(aes(x=hour,y=avg_humid,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Relative Humidity") 
 data_all %>%
+  filter(Date=="2004-05-07")%>%
   group_by(hour,Height)%>%
   summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
-  ggplot(aes(x=hour,y=avg_temp,col=Height,group=Height)) + geom_line()
+  ggplot(aes(x=hour,y=avg_temp,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Temperature") 
 ```
-### d)
+PCA was also performed on the data in order to check if it was possible to obtain a low dimensional projection. The values of interest: adjusted relative humidity, tempature, incident ray, reflected ray along with height were selected as the variables for the PCA. Through the scree-plot and the summary of the PCA, we can observe that approximately $72\%$ of the variance of the data can be explained by the first two Principal Components.
 ```{r}
 names(data_all)
 cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj")
@@ -486,7 +470,7 @@ data_filtered = data_all |>
   select(all_of(cols_name)) |>
   data.frame()
 pca_prcomp = prcomp(data_filtered, scale. = TRUE)
-summary(pca_prcomp)
+#summary(pca_prcomp)
 eigenvalues = pca_prcomp$sdev**2
 plot(1:length(eigenvalues), eigenvalues/sum(eigenvalues), type = "l")
 points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
@@ -496,19 +480,18 @@ points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
 Through the k-means clustering of the Principal Components, it can be observed that while plotting the components that explain a high variability of the data, humidity and temperature appear in opposite directions, hence confirming their negative correlation with each other. \newline
 Also, when we consider the 3 clusters in the plot of PC1 against PC2, which cumulatively explain approx. $72\%$ of our data, we can observe that the darkest cluster (represented by 1.0) represents values that contain high values of height, incident PAR and reflected PAR and relatively high values of temperature, leading to lower values of relative humidity. The second cluster (represented by 2.0) -> Lower values of height with higher temperature, higher incident PAR, higher reflect PAR and lower humidity. Third cluster (represented by 3.0) -> lower values of height, higher humidity, lower temperature, lower incident and reflected PAR.
 ```{r k means PCA}
-#Try grouping and checking over the week
 comp = data.frame(pca_prcomp$x)
-wss = function(k) {
-  kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
-}
+#wss = function(k) {
+ # kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
+#}
 
-k.values <- 1:5
-wss_values <- map_dbl(k.values, wss)
-plot(k.values, wss_values,
-       type="b", pch = 19, frame = FALSE, 
-       xlab="Number of clusters K",
-       ylab="Total within-clusters sum of squares")
-# 3?
+#k.values <- 1:5
+#wss_values <- map_dbl(k.values, wss)
+#plot(k.values, wss_values,
+       #type="b", pch = 19, frame = FALSE, 
+       #xlab="Number of clusters K",
+       #ylab="Total within-clusters sum of squares")
+set.seed(10)
 kmeans_pca = kmeans(comp,3)
 fviz_pca(pca_prcomp, axes = c(1, 2),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
 fviz_pca(pca_prcomp, axes = c(1, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
