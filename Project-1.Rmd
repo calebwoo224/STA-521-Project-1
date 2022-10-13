@@ -1,0 +1,1075 @@
+---
+title: "Project 1"
+author: "Sanskriti Purohit & Caleb Woo"
+date: "2022-10-13"
+output: pdf_document
+---
+```{r chunk-options, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+```{r libraries-data, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(chron)
+library(lubridate)
+library(ggcorrplot)
+library(RColorBrewer)
+library(scales)
+library(kableExtra)
+library(gridExtra)
+library(factoextra)
+data_net <- read.csv("data/sonoma-data-net.csv")
+data_log <- read.csv("data/sonoma-data-log.csv")
+# find dates cleaning in "dates-cleaning.R"
+dates <- read_csv("data/dates.csv")
+dates <- dates %>%
+  select(-c("...1"))
+```
+\section{1. Summaries}
+\subsection{1.1 Paper}
+The paper, "A Macroscope in the Redwoods" highlights the potential of the wireless sensor network macroscope in the field of science, particularly its use in observing and monitoring instances that vary over time and space. It also provides a way to analyse the complex data obtained through these sensors and draws a few conclusions about the dynamics of the microclimate around a coastal redwood tree. Therefore, establishing and achieving its motivation of devising a base model for future researches to observe what they weren't able to measure at the time. The redwood tree, proven to have a substantial variation in its microclimate over both space and time, was thus chosen to be the center of this research.  \newline \newline
+During the time frame of a month, the collected data, measurements of temperature, humidity, incident PAR and reflected PAR, was transferred over a network and also logged through a distributed data logger  contained in the suite of sensors placed on the redwood tree, such that each sensor maintained a certain minimum and maximum distance from the ground level, the trunk and other sensors. \newline \newline
+By projecting the sensor values onto time and then onto space, the researchers discovered a much higher variation over time than in space which informed them to remove temporal variation and focus on spatial variation.The researchers determined that PAR and temperature correlate with solar movement, although reflected PAR is more noisy because the absolute readings are lower.Humidity, on the other hand, was shown to change considerably over a wide range prior to sunrise and after sunrise spatial variability remains high suggesting that the foliage of the tree has a significant effect on humidity across different heights of the tree. \newline \newline
+Thus, multi-dimensional analysis of the data paints a detailed picture of the spatiotemporal variance, previously validated by biologists. Further, it shines light on the shortcomings of the existing wireless sensor networks. \newline \newline
+\subsection{1.2 Data Collection}
+The data for the study was collected over a duration of approximately 44 days (Tuesday, April 27, 2004 at 5:10pm to Thursday, June 10, 2004 at 2:00pm), where each sensor was sampled every 5 minutes. The sensors were deployed on the west side of the tree, at least 15m above the ground level, reaching a maximum distance of 70m while maintaining a 0.1-1 meter distance from the tree trunk. This was to ensure the capture of the variation caused by the foliage. There was also a 2 meter distance between each node, which proved to have a significant impact on the results obtained. \newline \newline
+The package was designed to ensure protection of the components of the node from various natural phenomenon such as rain, dirt, wind e.t.c. while enabling them to have the required sensitivity to measure the variables of interest.
+The researchers utilized the TinyDB data collection framework to collect the data into table format and represent each sensor as a column and each row as a reading taken at a particular time with additional columns for node ID, sample number, and sample reception time. Further the hardware and the software was calibrated twice to ensure optimum collection of the measurements of temperature, humidity, incident PAR and reflected PAR. Roof calibration was used on the PAR sensors to ensure that they were producing acceptable readings relative to a high-quality-well-established PAR sensor.
+Two-point calibration for each humidity and temperature sensor was performed by placing sensors in a controllable weather chamber and cycling through various temperatures and humidity levels.
+While calibration improved the mean temperature deviation from 0.35 degrees Celsius to 0.18 degrees Celsius and the mean humidity deviation from $1.24\%$ relative humidity to $0.60\%$ relative humidity, the absolute increase in accuracy was small enough to be of minimal benefit.\newline \newline
+The data was collected in two ways, through the transfer of the data to the gateway over a network and logging of the data at the site by the data logger installed in each node. \textbf{sonoma-data-log.csv} contains the data obtained from the logger while \textbf{sonoma-data-net.csv} contains that transferred over the network.
+
+\section{2. Data Cleaning}
+
+Voltage is our first inconsistent variable. We see that the network data voltage is in ADC units in the left plot while the log data voltage is in volts in the middle plot. Tolle et al. uses volts as the voltage unit, so we converted the network data voltage units from ADC to volts using the MICA2DOT user's manual found at this link: http://www-db.ics.uci.edu/pages/research/quasar/MPR-MIB%20Series%20User%20Manual%207430-0021-06_A.pdf.
+
+In section 6.5 of the user's manual, we see that we can convert ADC to volts by using the following formula:
+
+$$\text{Voltage} = 0.6*\frac{1024}{ADC}$$
+
+The histogram of the fixed network data voltage in volts is seen in the right plot.
+
+```{r initial-voltage}
+net_initial_voltage <- data_net %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=25) +
+  labs(title="Network ADC", x="ADC", y="Count")
+
+log_initial_voltage <- data_log %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=0.25) +
+  labs(title="Log Voltage", x="Volts", y="Count")
+
+data_net <- data_net %>%
+  mutate(voltage = 0.6*(1024/voltage))
+
+net_fixed_voltage <- data_net %>%
+  ggplot(data=., aes(x=voltage)) +
+  geom_histogram(binwidth=0.25) +
+  labs(title="Network Voltage", x="Volts", y="Count")
+
+grid.arrange(net_initial_voltage, log_initial_voltage, net_fixed_voltage, nrow=1)
+```
+
+Incident PAR is our second inconsistent variable. In the top two plots, we see that both network data incident PAR and log data incident PAR are represented as illuminance in lux units rather than as the photosyntehtic photon flux density (PPFD) in micromoles per second per meter squared units used in the paper. So we converted illuminance to PPFD using Apogee Instrument's conversion table found at this link: https://www.apogeeinstruments.com/conversion-ppfd-to-lux/.
+
+In the table on the right hand side, we see that we can convert illuminance in lux to PPFD in micromoles per second per meter squared for sunlight measurements by using the following formula:
+
+$$\text{PPFD} = 0.0185*\text{illuminance}$$
+
+The histograms of the fixed network and log incident PAR as PPFD in micromoles per second per meter squared is shown in the bottom two plots.
+
+```{r initial-hamatop}
+net_initial_hamatop <- data_net %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Incident PAR", x="Lux", y="Count")
+
+log_initial_hamatop <- data_log %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Incident PAR", x="Lux", y="Count")
+
+data_net <- data_net %>%
+  mutate(hamatop=0.0185*hamatop)
+
+data_log <- data_log %>%
+  mutate(hamatop=0.0185*hamatop)
+
+net_fixed_hamatop <- data_net %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+log_fixed_hamatop <- data_log %>%
+  filter(!is.na(hamatop)) %>%
+  ggplot(data=., aes(x=hamatop)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(net_initial_hamatop, log_initial_hamatop, net_fixed_hamatop, log_fixed_hamatop, nrow=2, ncol=2)
+```
+
+Similarly for reflected PAR, both network data reflected PAR and log data reflected PAR are represented as illuminance in lux units rather than as the PPFD in micromoles per second per meter squared units used in the paper. So we converted reflected PAR just like how we converted incident PAR above. The top two plots below show the histograms of network and log reflected PAR in lux prior to the conversion. The bottom two plots show the histograms of network and log reflected PAR in micromoles per second per meter squared after the conversion.
+
+```{r initial-hamabot}
+net_initial_hamabot <- data_net %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Reflected PAR", x="Lux", y="Count")
+
+log_initial_hamabot <- data_log %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Reflected PAR", x="Lux", y="Count")
+
+data_net <- data_net %>%
+  mutate(hamabot=0.0185*hamabot)
+
+data_log <- data_log %>%
+  mutate(hamabot=0.0185*hamabot)
+
+net_fixed_hamabot <- data_net %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+log_fixed_hamabot <- data_log %>%
+  filter(!is.na(hamabot)) %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(bins=20) +
+  labs(title="Log Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(net_initial_hamabot, log_initial_hamabot, net_fixed_hamabot, log_fixed_hamabot, nrow=2, ncol=2)
+```
+
+The other two relevant variables, humidity and temperature, appear to be consistent with each other and with the units used in the paper. Temperature is in degrees Celsius while humidity is in percent of relative humidity.
+```{r humidity, include=FALSE}
+# unused humidity and temperature histograms
+data_net %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4 & humidity < 105) %>%
+  ggplot(data=., aes(x=humidity)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Humidity Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humidity) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humidity)) +
+  geom_histogram(bins=20) +
+  labs(title="Logs Humidity Histogram", x="Humidity", y="Count")
+```
+```{r adj-humidity, include=FALSE}
+data_net %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4 & humid_adj < 105) %>%
+  ggplot(data=., aes(x=humid_adj)) +
+  geom_histogram(bins=20) +
+  labs(title="Network Adjusted Humidity Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humid_adj) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humid_adj)) +
+  geom_histogram(bins=20) +
+  labs(title="Logs Adjusted Humidity Histogram", x="Humidity", y="Count")
+```
+```{r temperature, include=FALSE}
+data_net %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4 & humid_temp < 35) %>%
+  ggplot(data=., aes(x=humid_temp)) +
+  geom_histogram(bins=15) +
+  labs(title="Network Temperature Histogram", x="Humidity", y="Count")
+
+data_log %>%
+  filter(!is.na(humid_temp) & voltage <= 3 & voltage >= 2.4) %>%
+  ggplot(data=., aes(x=humid_temp)) +
+  geom_histogram(bins=15) +
+  labs(title="Logs Temperature Histogram", x="Humidity", y="Count")
+```
+
+After we made all relevant variables in the network and log data consistent with each other and with the units used in the paper, we combined their data and also merged this combined data with the dates information found in "sonoma-dates". There are 8760 observations with missing measurements and these missing observations occur between April 30 at 8:05 AM and May 25 at 9:15 PM inclusive. We removed these 8760 missing observations.
+
+```{r dates-merge}
+data_both <- merge(data_net, data_log, by = c("epoch", "nodeid"), all.y = T, suffixes = c(".net", ".log"))
+data_all <- merge(data_both, dates, by = "epoch", all.x = T)
+```
+```{r missing}
+missing_data <-  data_all %>%
+  select(ends_with(".log"), epochDates, epochDays) %>%
+  filter_all(any_vars(is.na(.)))
+  #filter(is.na(parent.log) | is.na(voltage.log) | is.na(depth.log) | is.na(humidity.log) | is.na(humid_temp.log) |
+  #       is.na(humid_adj.log) | is.na(hamatop.log) | is.na(hamabot.log))
+
+#paste0("# of missing measurements: ", nrow(missing_data))
+
+missing_data %>%
+  select(epochDates) %>%
+  summarise(Start = min(epochDates),
+            End = max(epochDates)) %>%
+  kbl(caption = "8760 Missing Observations Time Period") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+```{r remove-missing}
+data_all <- data_all %>%
+  filter(!is.na(parent.log) & !is.na(voltage.log) & !is.na(depth.log) & !is.na(humidity.log) & !is.na(humid_temp.log) &
+         !is.na(humid_adj.log) & !is.na(hamatop.log) & !is.na(hamabot.log))
+row.names(data_all) <- NULL
+```
+
+When we initially combined the network data and log data, we noticed that they essentially have identical columns except for voltage. This must be because network voltage data had to be converted from ADC to volts so the conversion may not be exact. Since network data is missing for some rows, log data is not missing for any rows, and log data has essentially identical values as network data (other than voltage but log data voltage is more accurate anyways), we removed network data columns from the combined data frame. In addition, the result_time column from the combined data and the epochDates column merged from the dates information found in "sonoma-dates" represent the same information. However, epochDates from "sonoma-dates" is more accurate so we also removed the result_time column from the combined and merged data. Finally, I merged the locations data found in "mote-location-data.txt" with the rest of the combined and merged data described above to get a total of 16 variables that includes network and log data, dates data, and locations data. After merging the locations data, we found that there are 6091 observations with missing values in the locations data so we removed these observations as well.
+```{r locations, include=FALSE}
+# find locations cleaning in "locations-cleaning.R"
+locations <- read_csv("data/locations.csv") %>%
+  select(-c("...1"))
+```
+```{r locations-merge}
+data_all <- merge(data_all, locations, by = "nodeid", all.x = T)
+```
+```{r remove-network-data}
+data_all <- data_all %>%
+  select(-ends_with(".net"), -result_time.log)
+names(data_all)[3:11] <- str_replace(names(data_all)[3:11], ".log", "")
+```
+```{r remove-missing-locations}
+#data_all %>%
+#  filter(is.na(Height) & is.na(Direc) & is.na(Dist) & is.na(Tree)) %>%
+#  nrow()
+data_all <- data_all %>%
+  filter(!is.na(Height) & !is.na(Direc) & !is.na(Dist) & !is.na(Tree))
+```
+
+Since Tolle et al. found a correlation between battery failure and outliers, we first utilized their automatic outlier rejection strategy to get rid of most outliers before investigating for further outliers. We removed all data with voltages greater than 3 volts and less than 2.4 volts as described by Tolle et al. This removed 26,011 observations from our data.
+
+Below are the quantiles of humidity, adjusted humidity, temperature, incident PAR, and reflected PAR after removing outlier voltages. While the quantiles of humidity and adjusted humidity are very similar, the maximum value of adjusted humidity at 100.223 is closer to the maximum humidity value of 100.2 found in the paper so we will use adjusted humidity as our humidity measurement going forward. Below the quantiles are histograms of the four relevant variables. Comparing the quantiles of incident PAR with the quantiles of the paper and visually inspecting the incident PAR histogram revealed that there are some abnormally high values of incident PAR. Looking at the observations with an incident PAR higher than the maximum incident PAR of 2154 given in the paper, we found that node 40 is solely responsible for all of those readings. So we removed all observations recorded by node 40 to remove incident PAR outliers. Comparing the other quantiles with the quantiles in the paper and visually inspecting the other histograms do not reveal any further noticeable outliers in adjusted humidity, temperature, and reflected PAR.
+
+```{r voltage-outliers}
+#data_all %>%
+#  filter(voltage > 3 | voltage < 2.4) %>%
+#  nrow()
+data_all <- data_all %>%
+  filter(voltage <= 3 & voltage >= 2.4)
+```
+```{r quantiles-pre-removal}
+pre_humidity <- as.data.frame(quantile(data_all$humidity))
+names(pre_humidity)[1] <- "Humidity"
+pre_humid_adj <- as.data.frame(quantile(data_all$humid_adj))
+names(pre_humid_adj)[1] <- "Adjusted Humidity"
+pre_humid_temp <- as.data.frame(quantile(data_all$humid_temp))
+names(pre_humid_temp)[1] <- "Temperature"
+pre_hamatop <- as.data.frame(quantile(data_all$hamatop))
+names(pre_hamatop)[1] <- "Incident PAR"
+pre_hamabot <- as.data.frame(quantile(data_all$hamabot))
+names(pre_hamabot)[1] <- "Reflected PAR"
+
+cbind(pre_humidity, pre_humid_adj, pre_humid_temp, pre_hamatop, pre_hamabot) %>%
+  kbl(digits = 3, caption = "Quantiles After Removing Outlier Voltages") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+```{r histograms-pre-removal}
+pre_humid_adj_hist <- data_all %>%
+  ggplot(., aes(x=humid_adj)) +
+  geom_histogram(binwidth=5) +
+  labs(title="Adjusted Humidity", x="%RH", y="Count")
+
+pre_humid_temp_hist <- data_all %>%
+  ggplot(., aes(x=humid_temp)) +
+  geom_histogram(binwidth=2) +
+  labs(title="Temperature", x="\u00b0C", y="Count")
+
+pre_hamatop_hist <- data_all %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(binwidth=100) +
+  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+pre_hamabot_hist <- data_all %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(binwidth=10) +
+  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(pre_humid_adj_hist, pre_humid_temp_hist, pre_hamatop_hist, pre_hamabot_hist, nrow=2, ncol=2)
+```
+```{r high-hamatop-nodes}
+#data_all %>%
+#  filter(hamatop > 2154) %>%
+#  select(nodeid) %>%
+#  unique()
+```
+```{r remove-node-40}
+#data_all %>%
+#  filter(nodeid == 40) %>%
+#  nrow()
+data_all <- data_all %>%
+  filter(nodeid != 40)
+```
+
+Below are the quantiles and histograms of the relevant variables after removing outlier voltages and removing node 40. The quantiles match up well with the quantiles found in the paper and the histograms do not reveal any further noticeable outliers. Removing node 40 resulted in removing 98 observations recorded by node 40. Therefore, the final number of observations after all data cleaning is 271,776. Considering that log data contained 301,056 observations and network data contained 114,980 observations, our final cleaned data retains most of the information found in the log and network data.
+
+```{r quantiles-post-removal}
+post_humid_adj <- as.data.frame(quantile(data_all$humid_adj))
+names(post_humid_adj)[1] <- "Adjusted Humidity"
+post_humid_temp <- as.data.frame(quantile(data_all$humid_temp))
+names(post_humid_temp)[1] <- "Temperature"
+post_hamatop <- as.data.frame(quantile(data_all$hamatop))
+names(post_hamatop)[1] <- "Incident PAR"
+post_hamabot <- as.data.frame(quantile(data_all$hamabot))
+names(post_hamabot)[1] <- "Reflected PAR"
+
+cbind(post_humid_adj, post_humid_temp, post_hamatop, post_hamabot) %>%
+  kbl(digits = 3, caption = "Quantiles After Removing Node 40") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+```{r histograms-post-removal}
+post_humid_adj_hist <- data_all %>%
+  ggplot(., aes(x=humid_adj)) +
+  geom_histogram(binwidth=5) +
+  labs(title="Adjusted Humidity", x="%RH", y="Count")
+
+post_humid_temp_hist <- data_all %>%
+  ggplot(., aes(x=humid_temp)) +
+  geom_histogram(binwidth=2) +
+  labs(title="Temperature", x="\u00b0C", y="Count")
+
+post_hamatop_hist <- data_all %>%
+  ggplot(., aes(x=hamatop)) +
+  geom_histogram(binwidth=100) +
+  labs(title="Incident PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+post_hamabot_hist <- data_all %>%
+  ggplot(., aes(x=hamabot)) +
+  geom_histogram(binwidth=10) +
+  labs(title="Reflected PAR", x="\u00b5mol/m\u00b2/s", y="Count")
+
+grid.arrange(post_humid_adj_hist, post_humid_temp_hist, post_hamatop_hist, post_hamabot_hist, nrow=2, ncol=2)
+```
+```{r write-csv-data-all}
+#data_all %>%
+#  filter_all(any_vars(is.na(.))) %>%
+#  nrow()
+
+#write.csv(data_all, "data/data-all-dates-locations.csv")
+```
+
+\section{3. Data Exploration}
+
+In order to gain insights into the data, data points between 27th April and 27th May were chosen as they constitute more than $90\%$ of our information. Through the scatterplots of the corresponding data, we were able to gain some knowledge regarding the correlation between the variables and their behavior in the presence/absence of sunlight. A strong negative correlation between humidity and temperature can be observed through the scatterplot, which is also verified by obtaining a significant correlation coefficient of -0.827. Coloring the graph with the presence/absence of sunlight also confirms our belief of the existence of higher relative humidity and lower temperatures in the dark and an opposite behavior in the presence of sunlight. \newline
+By plotting the incident and reflected ray against each other, and coloring by height, we can observe the presence of higher readings in both at higher heights, suggesting that the level of absorption of sunlight is more or less uniform throughout the height of the tree. This can also be confirmed from the relatively strong positive correlation, 0.51, obtained from the test. \newline
+A positive correlation between height and incident ray, though not much visible through the figure, can also be concluded through the coefficient test. We can also observe a resultant positive correlation between height and temperature, perhaps due to presence of more sunlight in higher heights. \newline
+A strong positive correlation of 0.91 between voltage and temperature suggests a drop in voltage with the drop in temperature, which could further suggest that some readings below 2.4V and above 3V could be due to actual drop or rise in temperature and not due to node failure. 
+
+```{r fig1, echo = FALSE}
+data_all = read.csv("data/data-all-dates-locations.csv")
+#data_all %>%
+  #select(epochDates) %>%
+  #summarise(
+    #min = min(epochDates),
+    #max = max(epochDates)
+  #)
+
+data_all$Date = as.Date(data_all$epochDates)
+data_all$time = format(as.POSIXct(data_all$epochDates), format = "%H:%M")
+data_all$dayofweek = wday(data_all$epochDates)
+data_all$hour = format(as.POSIXct(data_all$epochDates), format = "%H")
+data_all$hour = as.numeric(data_all$hour)
+#Reason for choosing the hours for Dark and Light
+#data_all %>% 
+  #ggplot(aes(x=hour,y=hamatop)) + geom_point()
+data_all$Sunlight = case_when(
+  as.numeric(data_all$hour) <= 5 | as.numeric(data_all$hour) >= 20  ~ "Dark",
+  as.numeric(data_all$hour) < 20 ~ "Light"
+)
+#count(data_all,Sunlight)
+
+date_count = data_all %>% 
+  count(Date)
+date_count$n = date_count$n*100/sum(date_count$n)
+p=0
+for(i in 1:length(date_count$n)){
+  p = p + date_count$n[i]
+  date_count$n[i] = p
+}
+#date_count$n
+data_all = data_all %>%
+  filter(Date < '2004-05-27')
+#data_all %>%
+  #select(epochDates) %>%
+  #summarise(
+    #min = min(epochDates),
+   # max = max(epochDates)
+  #)
+#count(data_all,Sunlight)
+
+t_vs_rh = data_all %>% 
+  ggplot(aes(x=humid_temp, y=humid_adj, col = Sunlight)) + geom_point(alpha=0.05) + xlab("Temperature") + ylab("Adjusted Relative Humidity")
+ir_vs_rr = data_all %>%
+  ggplot(aes(x=hamatop,y=hamabot,col=Height)) + geom_point() + xlab("Incident Ray") + ylab("Reflected Ray")
+ir_vs_h = data_all %>%
+  ggplot(aes(x=hamatop,y=Height)) + geom_point() + xlab("Incident Ray") + ylab("Height")
+vl_vs_t = data_all %>% 
+  ggplot(aes(x=voltage, y=humid_temp)) + geom_point() + xlab("Voltage") + ylab("Temperature")
+grid.arrange(t_vs_rh, ir_vs_rr, ir_vs_h, vl_vs_t, nrow=2, ncol=2)
+
+```
+
+```{r fig2, fig.height=5,fig.width=5}
+numeric_data = c("Dist","dayofweek","Height","hamabot","hamatop","humid_adj","humid_temp","depth","voltage")
+data_all_fil = data_all |>
+  select(all_of(numeric_data)) |>
+  data.frame()
+corr=cor(data_all_fil, method=c("pearson","kendall","spearman"))
+ggcorrplot(corr,method="square")
+```
+
+A temporal view, with coloring by space, also assisted in deriving further insights and confirming our previous suggestions. At first, we took a broader look at the relationship between the values, time and height by taking the average of each value for each day for each height. Through these temporal graphs, we can strengthen our belief of the previously established correlation between the values and height. We also observed that the days that saw a drop in incident ray also saw a drop in temperature and a rise in humidity, suggesting a cloudy/rainy day. 
+
+```{r}
+dt_ir = data_all %>%
+  group_by(Date,Height)%>%
+  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_hamatop,col=Height,group=Height))+ geom_line()+scale_x_date(breaks="7 days",date_labels = "%B %d") + xlab("Date") + ylab("Incident Ray")
+dt_rr = data_all %>%
+  group_by(Date,Height)%>%
+  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_hamabot,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="7 days",date_labels = "%B %d") + xlab("Date") + ylab("Reflected Ray")
+dt_hum = data_all %>%
+  group_by(Date,Height)%>%
+  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_humid,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="7 days",date_labels = "%B %d") + xlab("Date") + ylab("Relative Humidity")
+dt_temp = data_all %>%
+  group_by(Date,Height)%>%
+  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
+  ggplot(aes(x=Date,y=avg_temp,col=Height,group=Height)) + geom_line()+scale_x_date(breaks="7 days",date_labels = "%B %d") + xlab("Date") + ylab("Temperature")
+grid.arrange(dt_ir, dt_rr , dt_hum , dt_temp , nrow=2, ncol=2)
+```
+
+
+To delve deeper into the data, we took a look at one of the dates, May 7th, corresponding to a drop in the average incident ray. We took the average of the values by hour and colored them by height. It can be observed that the entirety of the tree had high values of RH, resulting in lower temperatures, especially in the early morning and late hours of night. The average amount of incident ray and reflected ray are also much lower than those observed on other days. Therefore confirming that May 7th was a day with cloudy day with spells of rainfall.
+
+```{r}
+hr_ir = data_all %>%
+  filter(Date=="2004-05-07")%>%
+  group_by(hour,Height)%>%
+  summarise(avg_hamatop = mean(hamatop),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_hamatop,col=Height,group=Height))+ geom_line()  + xlab("Hour") + ylab("Incident Ray") 
+hr_rr = data_all %>%
+  filter(Date=="2004-05-07")%>%
+  group_by(hour,Height)%>%
+  summarise(avg_hamabot = mean(hamabot),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_hamabot,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Reflected Ray") 
+hr_hum = data_all %>%
+  filter(Date=="2004-05-07")%>%
+  group_by(hour,Height)%>%
+  summarise(avg_humid = mean(humid_adj),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_humid,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Relative Humidity") 
+hr_temp = data_all %>%
+  filter(Date=="2004-05-07")%>%
+  group_by(hour,Height)%>%
+  summarise(avg_temp = mean(humid_temp),.groups="drop") %>%
+  ggplot(aes(x=hour,y=avg_temp,col=Height,group=Height)) + geom_line()  + xlab("Hour") + ylab("Temperature") 
+grid.arrange(hr_ir, hr_rr , hr_hum , hr_temp , nrow=2, ncol=2)
+```
+
+PCA was also performed on the data in order to check if it was possible to obtain a low dimensional projection. The values of interest: adjusted relative humidity, tempature, incident ray, reflected ray along with height were selected as the variables for the PCA. Through the scree-plot and the summary of the PCA, we can observe that approximately $72\%$ of the variance of the data 
+can be explained by the first two Principal Components.
+
+```{r fig.width=5,fig.height=5}
+names(data_all)
+cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj")
+data_filtered = data_all |>
+  select(all_of(cols_name)) |>
+  data.frame()
+pca_prcomp = prcomp(data_filtered, scale. = TRUE)
+#summary(pca_prcomp)
+eigenvalues = pca_prcomp$sdev**2
+plot(1:length(eigenvalues), eigenvalues/sum(eigenvalues), type = "l")
+points(1:length(eigenvalues), eigenvalues/sum(eigenvalues))
+```
+
+\section{4. Interesting Findings}
+Through the k-means clustering of the Principal Components, it can be observed that while plotting the components that explain a high variability of the data, humidity and temperature appear in opposite directions, hence confirming their negative correlation with each other. \newline
+Also, when we consider the 3 clusters in the plot of PC1 against PC2, which cumulatively explain approx. $72\%$ of our data, we can observe that the darkest cluster (represented by 1.0) represents values that contain high values of height, incident PAR and reflected PAR and relatively high values of temperature, leading to lower values of relative humidity. The second cluster (represented by 2.0) -> Lower values of height with higher temperature, higher incident PAR, higher reflect PAR and lower humidity. Third cluster (represented by 3.0) -> lower values of height, higher humidity, lower temperature, lower incident and reflected PAR.
+
+```{r k means PCA}
+comp = data.frame(pca_prcomp$x)
+#wss = function(k) {
+ # kmeans(comp,algorithm="Lloyd", k, nstart = 10, iter.max=200 )$tot.withinss
+#}
+
+#k.values <- 1:5
+#wss_values <- map_dbl(k.values, wss)
+#plot(k.values, wss_values,
+       #type="b", pch = 19, frame = FALSE, 
+       #xlab="Number of clusters K",
+       #ylab="Total within-clusters sum of squares")
+set.seed(10)
+kmeans_pca = kmeans(comp,3)
+fviz_pca(pca_prcomp, axes = c(1, 2),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(1, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(1, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(1, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(2, 3),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(2, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(2, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(3, 4),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(3, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+#fviz_pca(pca_prcomp, axes = c(4, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
+```
+
+### GMM Clustering
+```{r may-count, include=FALSE}
+data_all <- read_csv("data/data-all-dates-locations.csv") %>%
+  select(-c("...1"))
+data_all %>%
+  filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
+  nrow()
+```
+Since the data contains so many different time stamps per day, we wanted to look at bigger periods of time to see if there are any noticeable differences in humidity, temperature, incident PAR, and reflected PAR between the time periods. In order to do so, we wanted to split each day into different time periods based on the sunrise and sunset times. We web scraped the sunrise, sunset, civil twilight, and solar noon times of all 31 days from May, 2004 in Sonoma, California. Observations from May 1, 2004 to May 31, 2004 makes about 78.2% of our total data so working with only May data still accounts for most of our total cleaned data. After web scraping and merging the scraped sun data with our May data, we assigned each observation a time period out of 8 categories: sunrise, sunset, early morning, late morning, early noon, late noon, early night, and late night.
+
+We assigned sunrise as the time period from the start of civil twilight to the number of minutes after sunrise that it took between the start of civil twilight to sunrise. For example, for May 1, civil twilight starts at 5:44 AM and sunrise occurs at 6:12 AM. Since it took 28 minutes between the start of civil twilight to sunrise, we made the end of sunrise 28 minutes after sunrise. So our sunrise time period for May 1 was 5:44 AM to 6:40 AM. Our sunrise time period varies by the start of civil twilight time and sunrise time for that day.
+
+We assigned sunset as the time period from the number of minutes before sunset it took between sunset to the end of civil twilight to the end of civil twilight. For example, for May 1, civil twilight ends at 8:30 PM and sunset occurs at 8:01 PM. Since it took 29 minutes between sunset to the end of civil twilight, we made the start of sunset 29 minutes before sunset. So our sunset time period for May 1 was 7:32 PM to 8:30 PM. Our sunset time period varies by the end of civil twilight time and sunset time for that day.
+
+The remaining time periods fill in quite naturally. Early morning is the time period from the end of sunrise as defined above to 10:00 AM. Late morning is the time period from 10:00 AM to the solar noon time of that day. Early noon is the time period from the solar noon time of that day to 4:30 PM. Late noon is the time period from 4:30 PM to the beginning of sunset time as defined above. Early night is the time period from the end of sunset time as defined above (end of civil twilight time) to 1:30 AM of the next day. Late night is the time period from 1:30 AM to the beginning of sunrise time as defined above (start of civil twilight time).
+
+Looking at the box plots of incident PAR, temperature, and humidity over these time periods, shown below, revealed some general trends that are confirmed by the paper. Both incident PAR and temperature start low and gradually increase before peaking at noon and gradually decreasing which suggests that these two measurements follow the normal movement of the sun as confirmed by Tolle et al. Humidity on the other hand starts high and gradually decreases before hitting its lowest point at noon and gradually increasing which suggests that humidity moves inversely with temperature which Tolle et al. alludes to. We also see that variability is reduced once the sun has risen and humidity has decreased which is confirmed by the paper's finding that temporal variability is reduced once the sun has risen. Since our box plots over our newly defined time periods reveal similar trends to that of the paper, we are fairly confident in how we split up our observations over time periods. Next, we used these newly defined time periods with GMM clustering to reveal further trends.
+
+```{r count-Times, include=FALSE}
+# sun data scraping and cleaning in "May Sun Data Scraping.R"
+data_all_sun <- read_csv("data/may-data-sun.csv")
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset", "Early Night"))
+#data_all_sun %>%
+#  count(Time)
+```
+```{r boxplots}
+times_hamatop_box <- ggplot(data_all_sun, aes(x=Time, y=hamatop, group=Time)) +
+  geom_boxplot() +
+  labs(title="Incident PAR over Time", y="\u00b5mol/m\u00b2/s")
+
+times_temp_box <- ggplot(data_all_sun, aes(x=Time, y=humid_temp, group=Time)) +
+  geom_boxplot() +
+  labs(title="Temperature over Time", y="\u00b0C")
+
+times_humidity_box <- ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
+  geom_boxplot()+
+  labs(title="Humidity over Time", y="%RH")
+
+grid.arrange(times_hamatop_box, times_temp_box, times_humidity_box, nrow=3)
+```
+
+Below are the observations of the early noon and early night time periods projected onto humidity and temperature. Since humidity generally moves inversely with temperature, we thought that two very different time periods such as early noon and early night would show up as well separated groups when projected onto humidity and temperature. Early noon and early night appear to be well separated with early noon having higher temperature values on average when compared to early night at corresponding humidity values. This separation checks out with our box plots of temperature over time shown above where early noon quantiles are noticeably greater than early night quantiles.
+
+```{r clust-initial-plot}
+data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
+  ggplot(., aes(x=humid_adj, y=humid_temp, color=Time)) +
+  geom_point() +
+  labs(title="Early Noon vs Early Night", x="Humidity (%RH)", y="Temperature (\u00b0C)")
+```
+
+Using Gaussian mixture model clustering, we grouped these early noon and early night observations into 5 different clusters. The clustering results are shown below. The Gaussian mixture model clustering algorithm appears to separate the observations into 5 distinct groups with each cluster representing a particular section of either the early noon or early night observations. Cluster 1 is somewhat ambiguous since its observations with lower humidity correspond to early night while its observations with higher humidity correspond with early noon. However, the other 4 clusters appear to clearly represent either early noon or early night.
+
+```{r clustering-1, include=FALSE}
+library(mclust)
+set.seed(521)
+
+gmm1 <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
+  select(humid_adj, humid_temp) %>%
+  Mclust(., G=5, modelNames="VVV", prior=priorControl())
+
+clusters_data_1 <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
+  select(humid_adj, humid_temp) %>%
+  cbind(., gmm1$classification)
+
+names(clusters_data_1)[3] <- "Cluster"
+clusters_data_1$Cluster <- as.factor(clusters_data_1$Cluster)
+```
+```{r clustering-plot}
+ggplot(clusters_data_1, aes(x=humid_adj, y=humid_temp, color=Cluster)) +
+  geom_point() +
+  labs(title="GMM Clustering", x="Humidity (%RH)", y="Temperature (\u00b0C)")
+```
+
+Below is a table of accuracy percentages and means of the humidity and temperature values for each cluster. We computed the accuracy percentage for each cluster as the percentage of the majority of points in that cluster. So cluster 1 has about 60% of observations being early noon, cluster 4 has about 89% of observations being early noon, and cluster 5 has about 99% of observations being early night. Clusters 2 and 3 both have 100% of observations being early night. Besides cluster 1, all other clusters appear to group sections of early noon or early night observations quite accurately. The mean humidity and mean temperature are also quite distinct between clusters.
+
+```{r cluster-accuracy}
+clusters_real_data <- data_all_sun %>%
+  filter(Time == "Early Night" | Time == "Early Noon") %>%
+  select(humid_adj, humid_temp, Time, Hour, Day, Height) %>%
+  cbind(., gmm1$classification)
+names(clusters_real_data)[7] <- "Cluster"
+clusters_real_data$Cluster <- as.factor(clusters_real_data$Cluster)
+
+acc1 <- clusters_real_data %>%
+  filter(Cluster == 1) %>%
+  count(Time) %>%
+  summarise(X1 = 100*n[1]/sum(n))
+
+acc2 <- clusters_real_data %>%
+  filter(Cluster == 2) %>%
+  count(Time) %>%
+  summarise(X2 = 100*n[1]/sum(n))
+
+acc3 <- clusters_real_data %>%
+  filter(Cluster == 3) %>%
+  count(Time) %>%
+  summarise(X3 = 100*n[1]/sum(n))
+
+acc4 <- clusters_real_data %>%
+  filter(Cluster == 4) %>%
+  count(Time) %>%
+  summarise(X4 = 100*n[1]/sum(n))
+
+acc5 <- clusters_real_data %>%
+  filter(Cluster == 5) %>%
+  count(Time) %>%
+  summarise(X5 = 100*n[2]/sum(n))
+```
+```{r gmm-means}
+gmm_means <- rbind(cbind(acc1, acc2, acc3, acc4, acc5), data.frame(gmm1$parameters$mean))
+names(gmm_means) <- c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5")
+rownames(gmm_means) <- c("Accuracy %", "Humidity Mean", "Temperature Mean")
+gmm_means %>%
+  kbl(digits = 3, caption = "GMM Accuracy and Cluster Means") %>%
+  kable_styling(latex_options = "HOLD_position", full_width = F)
+```
+
+Let us first compare clusters 4 and 5. Although clusters 4 and 5 both have similar values of low humidity and high temperature, about 89% of observations in cluster 4 are early noon while about 99% of observation in cluster 5 are early night. The histogram below on the left suggests a clear temporal trend where early noon observations with low humidity and high temperature range from about 1:00 PM to about 4:00 PM while early night observations with low humidity and high temperature range from about 8:00 PM to about 1:00 AM. This temporal trend is expected since these ranges are practically the ranges of each time period when we created the time period variable. The histogram on the left allows us to conclude that during May, 2004 in Sonoma, California, early noon and early night time periods shared very similar values of low humidity and high temperature.
+
+The histogram below on the right suggests a spatial trend where the early night time period makes up the majority of observations at low to middle heights while the early noon time period makes up the majority of observations at high heights. This spatial trend is more interesting than the expected temporal trend discussed above and perhaps it reveals a new insight. We believe that since sensors at high heights are more directly exposed to the sun, low humidities and especially high temperatures are captured more often during the early noon hours when the sun has a more direct effect on the sensor readings compared to the early night hours when the sun no longer has any direct effect on the sensor readings. We also believe that since sensors at low heights are more shaded from the sun, low humidities and high temperatures are captured more often during the early night hours compared to the early noon hours due to the delay in the effect of the sun on the sensor readings. Perhaps it takes a while for the sun to have any direct effect at low heights because of the heavy shading. So it is not until later in the day and into the early night when sensors at low heights are able to record the low humidities and high temperatures which were recorded during the early noon hours by sensors at higher heights.
+
+```{r gmm-hist-comparisons-1}
+c_45_1 <- clusters_real_data %>%
+  filter(Cluster == 4 | Cluster == 5) %>%
+  ggplot(., aes(x=Hour, fill=Time)) +
+  geom_bar() +
+  labs(title="Clusters 4 & 5 by Hour", y="# of Observations")
+
+c_45_2 <- clusters_real_data %>%
+  filter(Cluster == 4 | Cluster == 5) %>%
+  ggplot(., aes(x=Height, fill=Time)) +
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 4 & 5 by Height", y="Proportion of Observations")
+
+grid.arrange(c_45_1, c_45_2, nrow=1)
+```
+
+Now we will compared clusters 3 and 5. Although clusters 3 and 5 both represent early night with very high accuracies, cluster 3 observations have high humidity and low temperature while cluster 5 observations have low humidity and high temperature. The histogram below on the left suggests a temporal trend where early night observations transition from low humidity and high temperature values to high humidity and low temperature values and vice versa throughout the month. For example, within the first 10 days of the month, early night observations clearly transition from cluster 5 to cluster 3 which suggests that the weather transitioned from hot, dry days to cold, wet days. This temporal trend agrees with the temporal trend found by Tolle et al. where week one includes warm, dry days and cold, wet days but the three following weeks contain predominantly cold, wet days.
+
+The histogram below on the right suggests a subtle spatial trend where low to middle heights tend to have low humidity and high temperature during the early night time period while high heights tend to have high humidity and low temperature during the early night time period. We believe that this spatial trend may have a similar mechanism to the spatial trend above. If the sun has a delayed effect on temperatures at low heights, then it will not be until later in the day and into the early night that sensors at low heights are able to record the high temperatures that sensors at higher heights were able to record earlier in the day. A potential explanation for the high humidity at high heights may be due to the transpiration process of such a massive redwood tree. Since a gigantic redwood tree would lose a ton of water vapor via transpiration, the resulting humidity recordings would be much higher at high heights compared to low heights since the water vapor is rises. However, most plants are believed to primarily transpire during the daytime, so further research into the transpiration rates of redwood trees would be necessary before drawing such conclusions. This spatial trend is also more subtle than the spatial trend observed when comparing clusters 4 and 5 above so perhaps this trend is more of a coincidence than a finding.
+
+```{r gmm-hist-comparisons-2}
+c_35_1 <- clusters_real_data %>%
+  filter(Cluster == 3 | Cluster == 5) %>%
+  ggplot(., aes(x=Day, fill=Cluster)) +
+  geom_bar(position="fill") +
+  labs(title="Clusters 3 & 5 Histogram by Day", y="Proportion of Observations")
+
+c_35_2 <- clusters_real_data %>%
+  filter(Cluster == 3 | Cluster == 5) %>%
+  ggplot(., aes(x=Height, fill=Cluster)) +
+  geom_histogram(position="fill", binwidth=5) +
+  labs(title="Clusters 3 & 5 Histogram by Height", y="Proportion of Observations")
+
+grid.arrange(c_35_1, c_35_2, nrow=1)
+```
+
+\section{5. Graph Critique in the paper}
+
+The main difficulty in reading the full information from the long tails of the incident and reflected PAR histograms in figure 3[a] is that there are so many 0 values compared to the other values of incident and reflected PAR. This makes the first bin in each histogram extremely tall while all remaining bins at greater PAR values are extremely short in comparison. The long tails combined with the short heights of the incident and reflected PAR histograms makes reading the full information from the histograms extremely difficult. We believe that it would be best to plot all values other than the 0 values on the log scale to be able to more clearly differentiate the different values of incident and reflected PAR. About 55.8% of incident PAR values are 0 and about 84.9% of reflected PAR values are 0. The percentages on the y axes below represent the relative percentages of all non-zero PAR values plotted. So the incident PAR histogram represents percentages of the remaining 44.2% of values that are non-zero. The reflected PAR histogram represents percentages of the remaining 15.1% of values that are non-zero.
+
+```{r 5a}
+#data_all %>%
+#  filter(hamatop == 0) %>%
+#  nrow()
+
+#data_all %>%
+#  filter(hamabot == 0) %>%
+#  nrow()
+
+i_par_plot <- data_all %>%
+  filter(hamatop != 0) %>%
+  ggplot(., aes(x=log(hamatop))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Incident PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+r_par_plot <- data_all %>%
+  filter(hamabot != 0) %>%
+  ggplot(., aes(x=log(hamabot))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)),binwidth=0.5) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title="Reflected PAR", x="log \u00b5mol/m\u00b2/s", y="Percentage of readings")
+
+grid.arrange(i_par_plot, r_par_plot, nrow=1)
+```
+
+The box plots in figure 3[c] and 3[d] represent distributions and mean centered distributions respectively of temperature, humidity, incident PAR, and reflected PAR at varying levels of height. The box plots try to convey the differences across height of the four variables. However, we think that comparing the median and quartiles vertically and the visualization of the whiskers make it difficult to truly compare the differences of the distributions and mean centered distributions across height of the four variables. Using figure 4 as inspiration, we decided to plot height horizontally on the x axis, the four variables vertically on the y axis, and only the median, upper quartile, and lower quartile of the box plots to more clearly visualize the differences across height.
+
+```{r 5b-1}
+p_3c_1 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="\u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_2 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="%RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_3 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3c_4 <- data_all %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="\u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3c_1, p_3c_2, p_3c_3, p_3c_4, nrow=2, ncol=2)
+```
+```{r 5b-2}
+p_3d_1 <- data_all %>%
+  mutate(humid_temp = humid_temp - mean(humid_temp)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_temp),
+         x2 = quantile(humid_temp, probs=0.25),
+         x3 = quantile(humid_temp, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Temperature vs Height", x="Height (m)", y="Mean Centered \u00b0C", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_2 <- data_all %>%
+  mutate(humid_adj = humid_adj - mean(humid_adj)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(humid_adj),
+         x2 = quantile(humid_adj, probs=0.25),
+         x3 = quantile(humid_adj, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Relative Humidity vs Height", x="Height (m)", y="Mean Centered %RH", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_3 <- data_all %>%
+  mutate(hamatop = hamatop - mean(hamatop)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamatop),
+         x2 = quantile(hamatop, probs=0.25),
+         x3 = quantile(hamatop, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Incident PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+p_3d_4 <- data_all %>%
+  mutate(hamabot = hamabot - mean(hamabot)) %>%
+  group_by(Height) %>%
+  mutate(x1 = median(hamabot),
+         x2 = quantile(hamabot, probs=0.25),
+         x3 = quantile(hamabot, probs=0.75)) %>%
+  distinct(Height, x1, x2, x3) %>%
+  ggplot(., aes(x=Height)) +
+  geom_point(aes(y=x1, color="Median"), alpha=0.5) +
+  geom_line(aes(y=x1), color="red", alpha=0.5) +
+  geom_point(aes(y=x2, color="25%"), alpha=0.5) +
+  geom_line(aes(y=x2), color="blue", alpha=0.5) +
+  geom_point(aes(y=x3, color="75%"), alpha=0.5) +
+  geom_line(aes(y=x3), color="green", alpha=0.5) +
+  labs(title="Reflected PAR vs Height", x="Height (m)", y="Mean Centered \u00b5mol/m\u00b2/s", color="Quantile") +
+  scale_color_manual(values=c("Median"="red", "25%"="blue", "75%"="green"))
+
+grid.arrange(p_3d_1, p_3d_2, p_3d_3, p_3d_4, nrow=2, ncol=2)
+```
+
+The first two plots in figure 4 are not very effective because it is so difficult to distinguish any of the individual sensor readings across time since all sensor readings are overlayed on top of each other. It is very difficult to distinguish any one color so it is very difficult to distinguish any particular sensor in these two plots. We thought it would be more effective to plot just a few individual sensors to more clearly distinguish between sensors across time on May 1, 2004. In order to do so, for each plot we found and plotted the node with the highest average value, the node with the lowest average value, and the node with approximately the middle most average value. By doing this, the three nodes across time are fairly well separated so it is much easier to distinguish between the different line colors and thus distinguish between the different nodes.
+
+```{r 5c-1}
+library(lubridate)
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., desc(`Mean Temperature`)) %>%
+#  slice(1:3)
+
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., `Mean Temperature`) %>%
+#  slice(1:3)
+
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Temperature` = mean(humid_temp)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Temperature`) %>%
+#  arrange(., `Mean Temperature`) %>%
+#  slice(26:28)
+
+#locations %>%
+#  filter(nodeid == 118 | nodeid == 20 | nodeid == 11) %>%
+#  select(nodeid, Height)
+
+p_5c_1 <- data_all %>%
+  filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 118 | nodeid == 20 | nodeid == 11)) %>%
+  mutate(nodeid = factor(nodeid),
+         Time = format(epochDates, "%H:%M")) %>%
+  ggplot(., aes(x=Time)) +
+  geom_point(aes(y=humid_temp, color=nodeid)) +
+  geom_line(aes(y=humid_temp, group=nodeid, color=nodeid)) +
+  scale_color_discrete(labels = c("11 (49.4 m)", "20 (12.7 m)", "118 (63.5 m)")) +
+  scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
+  labs(title="May 1 Temperature vs Time", y="Temperature (\u00b0C)", color="Node id")
+
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., desc(`Mean Humidity`)) %>%
+#  slice(1:3)
+
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., `Mean Humidity`) %>%
+#  slice(1:3)
+
+#data_all %>%
+#  filter(as.Date(epochDates) == as.Date("2004-05-01")) %>%
+#  group_by(nodeid) %>%
+#  mutate(`Mean Humidity` = mean(humid_adj)) %>%
+#  ungroup() %>%
+#  distinct(nodeid, `Mean Humidity`) %>%
+#  arrange(., `Mean Humidity`) %>%
+#  slice(26:28)
+
+#locations %>%
+#  filter(nodeid == 20 | nodeid == 17 | nodeid == 115) %>%
+#  select(nodeid, Height)
+
+p_5c_2 <- data_all %>%
+  filter((as.Date(epochDates) == as.Date("2004-05-01")) & (nodeid == 20 | nodeid == 17 | nodeid == 115)) %>%
+  mutate(nodeid = factor(nodeid),
+         Time = format(epochDates, "%H:%M")) %>%
+  ggplot(., aes(x=Time)) +
+  geom_point(aes(y=humid_adj, color=nodeid)) +
+  geom_line(aes(y=humid_adj, group=nodeid, color=nodeid)) +
+  scale_color_discrete(labels = c("17 (56.5 m)", "20 (12.7 m)", "115 (41.8 m)")) +
+  scale_x_discrete(breaks=c("00:00", "06:00", "12:00", "18:00", "23:30")) +
+  labs(title="May 1 Relative Humidity vs Time", y="%RH", color="Node id")
+
+grid.arrange(p_5c_1, p_5c_2, nrow=2, ncol=1)
+```
+
+Although figure 7 clearly displays the different yields between the network and log data, it is difficult to directly compare them because the network and log data are plotted separately. We thought it would be easier to highlight the difference between network and log data by combining these plots and differentiating the network and log data by color. We found this to be most helpful for the second plot which is the plot of yield percentage over each day connected by a line. The two different colors representing network and log data in this combined second plot clearly show the difference in the change in yield percentage over the days between network and log data. The combined third plot, which is the plot of yield percentage over height, is more effective than when plotted separately because it now shows a clear difference in the yield percentage at each height between the network and log data. The combined fourth plot, which is the plot of the presence of any yield at each combination of day and height, is more effective than when plotted separately because the transparency of the points and the resulting shading of non-overlapping or overlapping points allow us to see where yield is present for network data, log data, or both at each combination of day and height.
+
+One additional concern is that it is unclear whether the original first plot in figure 7 represents the day yield or the node yield. Yield can be calculated for each day by summing and dividing by the total number of nodes. Yield can be calculated for each node by summing and dividing by the total number of days. The original first plot does not make this clear so we also thought it would be more effective to plot both day yield and node yield to highlight the difference in the two yields as well. Similar to the other three plots, we plot the day yield and the node yield with the combined network and log data and make each bar a proportion. This allows us to more directly compare the difference in yield percentages between network and log data for both day yield and node yield.
+
+```{r 5d}
+data_net <- merge(data_net, dates, by = "epoch", all.x = T, suffixes = c(".net", ".dates"))
+data_net <- merge(data_net, locations, by = "nodeid", all.x = T, suffixes = c(".net", ".locations"))
+data_log <- merge(data_log, dates, by = "epoch", all.x = T, suffixes = c(".log", ".dates"))
+data_log <- merge(data_log, locations, by = "nodeid", all.x = T, suffixes = c(".log", ".locations"))
+
+net_dates_yield <- c()
+log_dates_yield <- c()
+dates_range_net <- c()
+dates_range_log <- c()
+nodes_net <- c()
+nodes_log <- c()
+for (date in as.list(unique(as.Date(dates$epochDates)))) {
+  date_yield_n <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    nrow()
+  net_dates_yield <- c(net_dates_yield, date_yield_n/nrow(locations))
+  
+  date_yield_l <- data_log %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    nrow()
+  log_dates_yield <- c(log_dates_yield, date_yield_l/nrow(locations))
+  
+  date_nodes_net <- data_net %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    pull()
+  dn <- rep(date, length(date_nodes_net))
+  dates_range_net <- c(dates_range_net, dn)
+  nodes_net <- c(nodes_net, date_nodes_net)
+  
+  date_nodes_log <- data_log %>%
+    filter(as.Date(epochDates) == as.Date(date) & !is.na(voltage)) %>%
+    distinct(nodeid) %>%
+    pull()
+  dl <- rep(date, length(date_nodes_log))
+  dates_range_log <- c(dates_range_log, dl)
+  nodes_log <- c(nodes_log, date_nodes_log)
+}
+
+yields_dates_net <- dates %>%
+  distinct(as.Date(epochDates)) %>%
+  cbind(., net_dates_yield)
+yields_dates_net <- cbind(yields_dates_net, rep("Network", nrow(yields_dates_net)))
+names(yields_dates_net) <- c("Day", "Yield", "Data")
+
+yields_dates_log <- dates %>%
+  distinct(as.Date(epochDates)) %>%
+  cbind(., log_dates_yield)
+yields_dates_log <- cbind(yields_dates_log, rep("Log", nrow(yields_dates_log)))
+names(yields_dates_log) <- c("Day", "Yield", "Data")
+
+yields_dates <- rbind(yields_dates_net, yields_dates_log)
+
+p_5d_1 <- yields_dates %>%
+  ggplot(., aes(x=100*Yield, fill=Data)) +
+  geom_bar(position = "fill") +
+  labs(title="Day Yields", x="Yield %", y="Proportion of Days")
+
+p_5d_3 <- yields_dates %>%
+  ggplot(., aes(x=Day, y=100*Yield, color=Data)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Day Yields", y="Yield %")
+
+net_dates_height <- data.frame(cbind(dates_range_net, nodes_net)) %>%
+  merge(., locations, by.x="nodes_net", by.y="nodeid", all.x=T)
+net_dates_height <- cbind(net_dates_height, rep("Network", nrow(net_dates_height)))
+names(net_dates_height) <- c("nodeid", "date", "Height", "Direc", "Dist", "Tree", "Data")
+
+log_dates_height <- data.frame(cbind(dates_range_log, nodes_log)) %>%
+  merge(., locations, by.x="nodes_log", by.y="nodeid", all.x=T)
+log_dates_height <- cbind(log_dates_height, rep("Log", nrow(log_dates_height)))
+names(log_dates_height) <- c("nodeid", "date", "Height", "Direc", "Dist", "Tree", "Data")
+
+p_5d_5 <- rbind(net_dates_height, log_dates_height) %>%
+  mutate(Height = as.numeric(Height),
+         date = as.Date(date, origin="1970-01-01")) %>%
+  filter(!is.na(Height)) %>%
+  ggplot(., aes(x=date, y=Height, color=Data)) +
+  geom_point(alpha=0.5) +
+  labs(title="Height vs Day Yields", x="Day")
+
+net_nodes_yield <- c()
+log_nodes_yield <- c()
+for (node_id in locations$nodeid) {
+  node_yield_n <- data_net %>%
+    filter(nodeid == node_id & !is.na(voltage)) %>%
+    distinct(as.Date(epochDates)) %>%
+    nrow()
+  net_nodes_yield <- c(net_nodes_yield, node_yield_n/length(unique(as.Date(dates$epochDates))))
+  
+  node_yield_l <- data_log %>%
+    filter(nodeid == node_id & !is.na(voltage)) %>%
+    distinct(as.Date(epochDates)) %>%
+    nrow()
+  log_nodes_yield <- c(log_nodes_yield, node_yield_l/length(unique(as.Date(dates$epochDates))))
+}
+
+yields_nodes_net <- locations %>%
+  mutate(Height = as.numeric(Height)) %>%
+  distinct(nodeid, Height) %>%
+  cbind(., net_nodes_yield)
+yields_nodes_net <- cbind(yields_nodes_net, rep("Network", nrow(yields_nodes_net)))
+names(yields_nodes_net) <- c("Node ID", "Height", "Yield", "Data")
+
+yields_nodes_log <- locations %>%
+  mutate(Height = as.numeric(Height)) %>%
+  distinct(nodeid, Height) %>%
+  cbind(., log_nodes_yield)
+yields_nodes_log <- cbind(yields_nodes_log, rep("Log", nrow(yields_nodes_log)))
+names(yields_nodes_log) <- c("Node ID", "Height", "Yield", "Data")
+
+yields_nodes <- rbind(yields_nodes_net, yields_nodes_log)
+
+p_5d_2 <- yields_nodes %>%
+  ggplot(., aes(x=100*Yield, fill=Data)) +
+  geom_bar(position="fill") +
+  labs(title="Node Yields", x="Yield %", y="Proportion of Nodes")
+
+p_5d_4 <- yields_nodes %>%
+  ggplot(., aes(x=100*Yield, y=Height, color=Data)) +
+  geom_point(alpha=0.5) +
+  labs(title="Node Yields", x="Yield %", y="Node Height (m)")
+
+grid.arrange(p_5d_1, p_5d_2, p_5d_3, p_5d_4, p_5d_5, nrow=3, ncol=2)
+```
