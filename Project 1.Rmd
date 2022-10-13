@@ -509,44 +509,55 @@ fviz_pca(pca_prcomp, axes = c(3, 5),geom=c("point"),col.ind = kmeans_pca$clust,c
 fviz_pca(pca_prcomp, axes = c(4, 5),geom=c("point"),col.ind = kmeans_pca$clust,col.var="red",alpha.ind=0.25)
 ```
 
-```{r may-count}
+### GMM Clustering
+```{r may-count, include=FALSE}
 data_all <- read_csv("data/data-all-dates-locations.csv") %>%
   select(-c("...1"))
 data_all %>%
   filter(as.Date(epochDates) >= as.Date("2004-05-01") & as.Date(epochDates) <= as.Date("2004-05-31")) %>%
   nrow()
 ```
+Since the data contains so many different time stamps per day, we wanted to look at bigger periods of time to see if there are any noticeable differences in humidity, temperature, incident PAR, and reflected PAR between the time periods. In order to do so, we wanted to split each day into different time periods based on the sunrise and sunset times. We web scraped the sunrise, sunset, civil twilight, and solar noon times of all 31 days from May, 2004 in Sonoma, California. Observations from May 1, 2004 to May 31, 2004 makes about 78.2% of our total data so working with only May data still accounts for most of our total cleaned data. After web scraping and merging the scraped sun data with our May data, we assigned each observation a time period out of 8 categories: sunrise, sunset, early morning, late morning, early noon, late noon, early night, and late night.
 
-78.2% of data is within May, 2004
+We assigned sunrise as the time period from the start of civil twilight to the number of minutes after sunrise that it took between the start of civil twilight to sunrise. For example, for May 1, civil twilight starts at 5:44 AM and sunrise occurs at 6:12 AM. Since it took 28 minutes between the start of civil twilight to sunrise, we made the end of sunrise 28 minutes after sunrise. So our sunrise time period for May 1 was 5:44 AM to 6:40 AM. Our sunrise time period varies by the start of civil twilight time and sunrise time for that day.
 
-```{r count-Times}
+We assigned sunset as the time period from the number of minutes before sunset it took between sunset to the end of civil twilight to the end of civil twilight. For example, for May 1, civil twilight ends at 8:30 PM and sunset occurs at 8:01 PM. Since it took 29 minutes between sunset to the end of civil twilight, we made the start of sunset 29 minutes before sunset. So our sunset time period for May 1 was 7:32 PM to 8:30 PM. Our sunset time period varies by the end of civil twilight time and sunset time for that day.
+
+The remaining time periods fill in quite naturally. Early morning is the time period from the end of sunrise as defined above to 10:00 AM. Late morning is the time period from 10:00 AM to the solar noon time of that day. Early noon is the time period from the solar noon time of that day to 4:30 PM. Late noon is the time period from 4:30 PM to the beginning of sunset time as defined above. Early night is the time period from the end of sunset time as defined above (end of civil twilight time) to 1:30 AM of the next day. Late night is the time period from 1:30 AM to the beginning of sunrise time as defined above (start of civil twilight time).
+
+Looking at the box plots of incident PAR, temperature, and humidity over these time periods, shown below, revealed some general trends that are confirmed by the paper. Both incident PAR and temperature start low and gradually increase before peaking at noon and gradually decreasing which suggests that these two measurements follow the normal movement of the sun as confirmed by Tolle et al. Humidity on the other hand starts high and gradually decreases before hitting its lowest point at noon and gradually increasing which suggests that humidity moves inversely with temperature which Tolle et al. alludes to. We also see that variability is reduced once the sun has risen and humidity has decreased which is confirmed by the paper's finding that temporal variability is reduced once the sun has risen. Since our box plots over our newly defined time periods reveal similar trends to that of the paper, we are fairly confident in how we split up our observations over time periods. Next, we used these newly defined time periods with GMM clustering to reveal further trends.
+
+```{r count-Times, include=FALSE}
+# sun data scraping and cleaning in "May Sun Data Scraping.R"
 data_all_sun <- read_csv("data/may-data-sun.csv")
-data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Early Night", "Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset"))
-data_all_sun %>%
-  count(Time)
+data_all_sun$Time <- factor(data_all_sun$Time, levels = c("Late Night", "Sunrise", "Early Morning", "Late Morning", "Early Noon", "Late Noon", "Sunset", "Early Night"))
+#data_all_sun %>%
+#  count(Time)
 ```
-
-### Time vs Variable Boxplots
-
 ```{r boxplots}
-ggplot(data_all_sun, aes(x=Time, y=hamatop, group=Time)) +
-  geom_boxplot()
+times_hamatop_box <- ggplot(data_all_sun, aes(x=Time, y=hamatop, group=Time)) +
+  geom_boxplot() +
+  labs(title="Incident PAR over Time", y="\u00b5mol/m\u00b2/s")
 
-ggplot(data_all_sun, aes(x=Time, y=humid_temp, group=Time)) +
-  geom_boxplot()
+times_temp_box <- ggplot(data_all_sun, aes(x=Time, y=humid_temp, group=Time)) +
+  geom_boxplot() +
+  labs(title="Temperature over Time", y="\u00b0C")
 
-ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
-  geom_boxplot()
+times_humidity_box <- ggplot(data_all_sun, aes(x=Time, y=humid_adj, group=Time)) +
+  geom_boxplot()+
+  labs(title="Humidity over Time", y="%RH")
+
+grid.arrange(times_hamatop_box, times_temp_box, times_humidity_box, nrow=3)
 ```
 
-### Clustering
+Clustering discussion
 
 ```{r clust-initial-plot}
 data_all_sun %>%
   filter(Time == "Early Night" | Time == "Early Noon") %>%
   ggplot(., aes(x=humid_adj, y=humid_temp, color=Time)) +
   geom_point() +
-  labs(title="Early Night vs Early Noon", x="Humidity", y="Temperature")
+  labs(title="Early Night vs Early Noon", x="Humidity (%RH)", y="Temperature (\u00b0C)")
 ```
 
 ```{r clustering-1}
