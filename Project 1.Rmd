@@ -26,6 +26,19 @@ dates <- read_csv("data/dates.csv")
 dates <- dates %>%
   select(-c("...1"))
 ```
+## 1\newline
+### 1.1 Summary of the Paper \newline
+The paper, "A Macroscope in the Redwoods" highlights the potential of the wireless sensor network macroscope in the field of science, particularly its use in observing and monitoring instances that vary over time and space. It also provides a way to analyse the complex data obtained through these sensors and draws a few conclusions about the dynamics of the microclimate around a coastal redwood tree. Therefore, establishing and achieving its motivation of devising a base model for future researches to observe what they weren't able to measure at the time. The redwood tree, proven to have a substantial variation in its microclimate over both space and time, was thus chosen to be the center of this research.  \newline
+During the time frame of a month, the collected data, measurements of temperature, humidity, incident PAR and reflected PAR, was transferred over a network and also logged through a distributed data logger  contained in the suite of sensors placed on the redwood tree, such that each sensor maintained a certain minimum and maximum distance from the ground level, the trunk and other sensors. \newline
+By projecting the sensor values onto time and then onto space, the researchers discovered a much higher variation over time than in space which informed them to remove temporal variation and focus on spatial variation.The researchers determined that PAR and temperature correlate with solar movement, although reflected PAR is more noisy because the absolute readings are lower.Humidity, on the other hand, was shown to change considerably over a wide range prior to sunrise and after sunrise spatial variability remains high suggesting that the foliage of the tree has a significant effect on humidity across different heights of the tree. \newline
+Thus, multi-dimensional analysis of the data paints a detailed picture of the spatiotemporal variance, previously validated by biologists. Further, it shines light on the shortcomings of the existing wireless sensor networks. \newline
+### 1.2 Summary of Data Collection \newline
+The data for the study was collected over a duration of approximately 44 days (Tuesday, April 27, 2004 at 5:10pm to Thursday, June 10, 2004 at 2:00pm), where each sensor was sampled every 5 minutes. The sensors were deployed on the west side of the tree, at least 15m above the ground level, reaching a maximum distance of 70m while maintaining a 0.1-1 meter distance from the tree trunk. This was to ensure the capture of the variation caused by the foliage. There was also a 2 meter distance between each node, which proved to have a significant impact on the results obtained. \newline
+The package was designed to ensure protection of the components of the node from various natural phenomenon such as rain, dirt, wind e.t.c. while enabling them to have the required sensitivity to measure the variables of interest.
+The researchers utilized the TinyDB data collection framework to collect the data into table format and represent each sensor as a column and each row as a reading taken at a particular time with additional columns for node ID, sample number, and sample reception time. Further the hardware and the software was calibrated twice to ensure optimum collection of the measurements of temperature, humidity, incident PAR and reflected PAR. Roof calibration was used on the PAR sensors to ensure that they were producing acceptable readings relative to a high-quality-well-established PAR sensor.
+Two-point calibration for each humidity and temperature sensor was performed by placing sensors in a controllable weather chamber and cycling through various temperatures and humidity levels.
+While calibration improved the mean temperature deviation from 0.35 degrees Celsius to 0.18 degrees Celsius and the mean humidity deviation from $1.24\%$ relative humidity to $0.60\%$ relative humidity, the absolute increase in accuracy was small enough to be of minimal benefit.\newline
+The data was collected in two ways, through the transfer of the data to the gateway over a network and logging of the data at the site by the data logger installed in each node. \textbf{sonoma-data-log.csv} contains the data obtained from the logger while \textbf{sonoma-data-net.csv} contains that transferred over the network.
 
 ## 2.
 
@@ -434,9 +447,9 @@ data_all %>%
 data_all %>%
   ggplot(aes(x=hour,y=hamatop)) + geom_point()
 data_all %>%
-  ggplot(aes(x=humid_temp,y=hamatop,col=Sunlight)) + geom_point(alpha=0.05)
+  ggplot(aes(x=humid_temp,y=hamatop)) + geom_point()
 data_all %>%
-  ggplot(aes(x=humid_adj,y=hamatop,col=Sunlight)) + geom_point(alpha=0.05)
+  ggplot(aes(x=humid_adj,y=hamatop)) + geom_point()
 data_all %>% 
   ggplot(aes(x=humid_adj,y=hamabot, col = Sunlight)) + geom_point(alpha=0.05)
 data_all %>% 
@@ -448,7 +461,7 @@ data_all %>%
 ## 3
 ### b)
 ```{r}
-corr =x=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman"))
+corr=cor(data_all[,unlist(lapply(data_all,is.numeric))],y=data_all$hamatop, method=c("pearson","kendall","spearman"))
 ggcorrplot(corr,method="square")
 ```
 
@@ -510,7 +523,7 @@ data_all %>%
 ### d)
 ```{r}
 names(data_all)
-cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj","hour","dayofweek")
+cols_name = c("hamatop","hamabot","Height","humid_temp","humid_adj")
 data_filtered = data_all |>
   select(all_of(cols_name)) |>
   data.frame()
